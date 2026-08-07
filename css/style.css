@@ -78,6 +78,10 @@ canvas{image-rendering:pixelated}
 .pf .st .k{color:var(--ash)}
 .pf .st .v{color:var(--bone);font-variant-numeric:tabular-nums;margin-left:auto}
 .pf .st .v.mag{color:var(--rune)}.pf .st .v.phy{color:#F0C48A}
+.pf .xprow{display:flex;align-items:center;gap:6px;margin-top:4px}
+.pf .xplv{font-family:var(--px);font-size:7.5px;color:var(--torch);letter-spacing:.04em;flex:none}
+.pf .xpbar2{position:relative;flex:1;height:4px;background:#241d2e;border:1px solid #000}
+.pf .xpfill{position:absolute;left:0;top:0;bottom:0;background:var(--torch);width:0;transition:width .2s linear}
 /* delve map overlay */
 #map-wrap{background:#07060d;border:1px solid var(--edge);padding:8px;display:flex;justify-content:center}
 #map-cv{width:100%;height:auto;image-rendering:pixelated}

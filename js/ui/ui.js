@@ -446,6 +446,11 @@ export function buildHud(){
     const hp=el('div','hpwrap');hp.appendChild(el('div','hpfill'));hp.appendChild(el('div','hpnum'));
     info.appendChild(hp);
     info.appendChild(el('div','grid'));
+    const xp=el('div','xprow');
+    xp.appendChild(el('span','xplv',''));
+    const xb=el('div','xpbar2');xb.appendChild(el('div','xpfill'));
+    xp.appendChild(xb);
+    info.appendChild(xp);
     d.appendChild(info);
     d.onclick=()=>{D.paused=true;openCharSheet(c);};
     pf.appendChild(d);
@@ -467,6 +472,11 @@ export function syncHud(){
     const num=d.querySelector('.hpnum');
     if(num)num.textContent=Math.max(0,Math.round(u.hp))+'/'+Math.round(mh);
     d.classList.toggle('dead',!u.alive);
+    /* level + xp (kept live through level-ups) */
+    const lvb=d.querySelector('.port .lv'); if(lvb)lvb.textContent='L'+u.char.lv;
+    const xlv=d.querySelector('.xplv'); if(xlv)xlv.textContent='LV '+u.char.lv;
+    const xf=d.querySelector('.xpfill');
+    if(xf){const need=BAL.xpCurve(u.char.lv);xf.style.width=Math.min(100,Math.max(0,u.char.xp/need*100))+'%';}
     const grid=d.querySelector('.grid');
     if(grid){
       const phys=(st.patt||0)>=(st.matt||0);
