@@ -200,6 +200,7 @@ canvas{image-rendering:pixelated}
 .item .in i{display:block;color:var(--ash);font-size:10px;font-family:var(--px);letter-spacing:.03em;margin-top:4px;font-style:normal}
 .item .delta{display:flex;flex-wrap:wrap;gap:5px 9px;margin-top:6px;font-family:var(--px);font-size:9px;letter-spacing:.02em}
 .item .delta .up{color:#5FBE6A}.item .delta .dn{color:#E0604A}.item .delta .pc{color:var(--rune)}
+.item .in i .offc{color:var(--ember)}
 .item .delta .flat{color:#6b6280}
 .iops{display:flex;gap:6px}
 .iops button{min-height:40px;padding:8px 12px;font-size:9px}

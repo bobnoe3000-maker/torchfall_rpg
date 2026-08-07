@@ -1,6 +1,6 @@
 /* Iso renderer — condensed from the prototype: banded floors, coursed walls,
    torch flicker, props, units via the Forge assembler, minimap fog. */
-import {W,TW,TH,tileAt,idx,inB,FLOOR,WALL,lightAt} from '../game/world.js';
+import {W,TW,TH,tileAt,idx,inB,FLOOR,WALL} from '../game/world.js';
 import {D} from '../game/combat.js';
 import {S} from '../game/state.js';
 import {getFrame,BOX} from '../art/assemble.js';
@@ -181,18 +181,18 @@ function drawUnit(u,t){
   else if(u.castLock>0){anim='attack';ph=Math.min(3,Math.floor((560-u.castLock)/150));}
   else if(u.walking){anim='walk';ph=Math.floor(t/190)%4;}
   const fr=getFrame(c.recipe,c.pal,anim,ph,u.face);
+  let cf=1,sink=0;
+  if(!u.alive){cf=u.deadT!==undefined?Math.max(0,Math.min(1,u.deadT/BAL.corpseMs)):1;sink=(1-cf)*3;}
+  g.globalAlpha=cf;
   g.fillStyle='rgba(0,0,0,.4)';
-  g.beginPath();g.ellipse(sx,sy+2,8,3,0,0,6.29);g.fill();
-  const dx=sx-BOX.w/2,dy=sy-BOX.h+6;
+  g.beginPath();g.ellipse(sx,sy+2,8*cf,3*cf,0,0,6.29);g.fill();
+  const dx=sx-BOX.w/2,dy=sy-BOX.h+6+sink;
   if(u.flash>0){
     g.globalCompositeOperation='lighter';g.globalAlpha=.7;
-    g.drawImage(fr,dx,dy);g.globalAlpha=1;g.globalCompositeOperation='source-over';
+    g.drawImage(fr,dx,dy);g.globalAlpha=cf;g.globalCompositeOperation='source-over';
   }
-  const li=lightAt(u.x,u.y,D.units.filter(o=>o.side==='party'&&o.alive));
   g.drawImage(fr,dx,dy);
-  if(li<.55){g.globalAlpha=(0.55-li)*.9;g.globalCompositeOperation='source-atop';
-    // darken sprite region cheaply
-    g.globalCompositeOperation='source-over';g.globalAlpha=1;}
+  g.globalAlpha=1;
   if(u.alive){
     const mh=c.stats?c.stats.hp:c.maxhp, frac=Math.max(0,u.hp/mh);
     g.fillStyle='rgba(0,0,0,.6)';g.fillRect(sx-8,dy-3,16,2);

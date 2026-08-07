@@ -2,7 +2,7 @@
 import {W,genDungeon,solid,los,astar,buildFlow,revealFog,idx,inB} from './world.js';
 import {S,partyUnits,grantXp,refresh,persist} from './state.js';
 import {derive,rollDamage,itemProcs} from './stats.js';
-import {genItem} from './loot.js';
+import {genItem,itemName} from './loot.js';
 import {PROCS} from '../config/gear.js';
 import {ENEMY_TYPES,ENEMY_PREFIXES} from '../config/enemies.js';
 import {ARCHETYPES} from '../config/skills.js';
@@ -35,8 +35,22 @@ export function startDelve(depth){
   }
   const p=D.units.find(u=>u.side==='party');
   D.cam.x=p.x;D.cam.y=p.y;
-  D.running=true;
+  D.running=true;respawnT=BAL.respawnMs;
   emit('delve-start',{depth});
+}
+/* trickle fresh foes into far rooms so a cleared dungeon never goes empty */
+function maybeRespawn(cx,cy){
+  let alive=0;for(const u of D.units)if(u.side==='foe'&&u.alive)alive++;
+  if(alive>=BAL.enemyCap(S.depth))return;
+  const far=W.rooms.filter(r=>Math.hypot(r.cx+.5-cx,r.cy+.5-cy)>BAL.respawnMinDist);
+  const pool=far.length?far:W.rooms.slice(1);
+  if(!pool.length)return;
+  const r=pick(D.rng,pool);
+  for(let t=0;t<8;t++){
+    const x=RI(D.rng,r.x+1,r.x+r.w-2)+.5,y=RI(D.rng,r.y+1,r.y+r.h-2)+.5;
+    if(solid(x,y)||Math.hypot(x-cx,y-cy)<BAL.respawnMinDist)continue;
+    D.units.push(mkEnemy(S.depth,x,y));return;
+  }
 }
 function mkBody(char,side,x,y){
   return {char,side,x,y,face:1,anim:'idle',animT:R(D.rng,0,900),
@@ -165,8 +179,15 @@ function hit(att,tgt,pow,phys,procs,critBonus){
   if(tgt.hp<=0)kill(att,tgt);
   return dmg;
 }
+function crumble(u){
+  for(let i=0;i<11;i++){
+    const a=D.rng()*6.28,v=R(D.rng,.5,2.3);
+    D.fx.push({t:'spark',x:u.x,y:u.y-.3,vx:Math.cos(a)*v,vy:Math.sin(a)*v*.5-.6,
+      col:i%3?'#4a4048':'#2e2833',life:R(D.rng,280,560),max:560});
+  }
+}
 function kill(att,tgt){
-  tgt.hp=0;tgt.alive=false;tgt.anim='dead';
+  tgt.hp=0;tgt.alive=false;tgt.anim='dead';tgt.deadT=BAL.corpseMs;crumble(tgt);
   if(tgt.side==='foe'){
     D.kills++;
     const lv=tgt.char.lv,lm=tgt.char.lootMult||1;
@@ -192,6 +213,8 @@ function onWipeCheck(){
   if(!alivePlayer){D.running=false;emit('player-dead');}
 }
 function float(u,txt,col){D.floaters.push({x:u.x,y:u.y,txt,col,life:850});}
+function lootColor(it){const n=(it.pre>=0?1:0)+(it.suf>=0?1:0);
+  return (it.plus>=1||n>=2)?'#F0C46A':(n>=1?'#7FB0F0':'#D9CFBA');}
 /* ── skills ── */
 export function castSkill(body,si,manual){
   const arch=ARCHETYPES[body.char.arch];if(!arch)return false;
@@ -246,7 +269,7 @@ function bolt(src,tgt,pow,phys,col,procs){
   D.fx.push({t:'bolt',x:src.x,y:src.y-.6,tgt,src,pow,phys,procs,col,life:4000,trail:[]});
 }
 /* ── main step ── */
-let flowT=0;
+let flowT=0, respawnT=0;
 export function step(dt){
   if(!D.running||D.paused)return;
   dt*=D.speed;D.t+=dt;
@@ -258,8 +281,10 @@ export function step(dt){
   if(flowT<=0){buildFlow(party);flowT=420;}
   const cx=party.reduce((s,u)=>s+u.x,0)/party.length;
   const cy=party.reduce((s,u)=>s+u.y,0)/party.length;
+  respawnT-=dt;
+  if(respawnT<=0){respawnT=BAL.respawnMs;maybeRespawn(cx,cy);}
   for(const u of D.units){
-    if(!u.alive)continue;
+    if(!u.alive){if(u.deadT>0)u.deadT-=dt;continue;}
     u.walking=false;
     u.atkCd-=dt;
     if(u.castLock>0)u.castLock-=dt;
@@ -347,12 +372,14 @@ export function step(dt){
     separate(u,dt);
   }
   if(D.rally&&Math.hypot(D.rally.x-cx,D.rally.y-cy)<0.8)D.rally=null;
-  /* pickups */
+  /* crumbled corpses vanish */
+  D.units=D.units.filter(u=>u.alive||u.deadT>0);
+  /* pickups — float the actual loot name */
   for(const p of D.loot){
     for(const b of party){
       if(Math.hypot(p.x-b.x,p.y-b.y)<.65){
-        if(p.kind==='silver'){S.silver+=p.amt;float(b,'+'+p.amt+'s','#E8C46A');}
-        else{S.inv.push(p.item);float(b,'+ITEM','#C9A24A');}
+        if(p.kind==='silver'){S.silver+=p.amt;float(b,'+'+p.amt+' SILVER','#E8C46A');}
+        else{S.inv.push(p.item);float(b,itemName(p.item),lootColor(p.item));}
         p.dead=true;emit('hud');break;
       }
     }

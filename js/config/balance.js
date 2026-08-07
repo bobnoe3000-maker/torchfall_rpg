@@ -22,4 +22,8 @@ export const BAL={
   skillNpcCd: 6500,
   regenPerSec: .012,                 // out of combat, fraction of maxhp
   dodgeCap: 45, critCap: 60,
+  corpseMs: 1100,                    // corpse crumbles then vanishes over this
+  respawnMs: 4600,                   // dungeon trickles in a new foe this often
+  enemyCap: d=>8+Math.floor(d*1.2),  // sustained live-foe population it refills toward
+  respawnMinDist: 9.5,               // new foes appear at least this far from the party
 };

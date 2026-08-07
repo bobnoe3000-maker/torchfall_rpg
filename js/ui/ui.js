@@ -1,7 +1,7 @@
 /* Screens: create → town → delve; overlay sheets; HUD */
 import {S,makeCharacter,randRecipe,refresh,partyUnits,persist,restore,grantXp} from '../game/state.js';
 import {D,startDelve,castSkill,playerBody} from '../game/combat.js';
-import {ARCHETYPES,ARCH_KEYS} from '../config/skills.js';
+import {ARCHETYPES,ARCH_KEYS,STAT_WEIGHTS} from '../config/skills.js';
 import {BAL} from '../config/balance.js';
 import {rollPal} from '../art/parts.js';
 import {getFrame} from '../art/assemble.js';
@@ -163,10 +163,23 @@ const SLOTS=['weapon','offhand','armor','boots'];
 const SLOT_ICON={weapon:'🗡️',offhand:'🛡️',armor:'🥋',boots:'🥾'};
 const PROC_GEM={burn:'burn',poison:'dodge',slow:'slow',leech:'ward'};
 function itemRarity(it){const n=(it.pre>=0?1:0)+(it.suf>=0?1:0);return (it.plus>=1||n>=2)?'rare':(n>=1?'magic':'');}
-/* rough "is this more gear" score — powers the upgrade dot (heuristic, hp weighted down) */
-function itemScore(it){const s=scaledStats(it);let v=0;for(const k in s)v+=(k==='hp'?s[k]*0.25:s[k]);return v+((it.procs&&it.procs.length)||0)*4;}
-function bestInvFor(slot){let best=null,bs=-1;for(const it of S.inv){if(it.slot!==slot)continue;const sc=itemScore(it);if(sc>bs){bs=sc;best=it;}}return best?{it:best,score:bs}:null;}
-function slotUpgrade(c,slot){const b=bestInvFor(slot);if(!b)return false;const cur=c.equip[slot];return b.score>(cur?itemScore(cur):0)+0.5;}
+/* a weapon whose swing/bow/raise kind isn't in the class's bias fights the wrong way */
+function offClassWeapon(it,c){
+  if(it.slot!=='weapon'||!it.kind||!c)return false;
+  const bias=ARCHETYPES[c.arch]?.weaponBias||[];
+  return bias.length>0 && !bias.includes(it.kind);
+}
+/* class-aware "is this an upgrade FOR ME" score — powers the slot dot */
+const DEFAULT_W={patt:1,matt:1,pdef:1,mdef:1,dodge:1,crit:1,hp:.2};
+function itemScore(it,c){
+  const w=(c&&STAT_WEIGHTS[c.arch])||DEFAULT_W, s=scaledStats(it);
+  let v=0;for(const k in s)v+=s[k]*(w[k]!==undefined?w[k]:1);
+  v+=((it.procs&&it.procs.length)||0)*3;
+  if(offClassWeapon(it,c))v*=0.35;
+  return v;
+}
+function bestInvFor(slot,c){let best=null,bs=-1;for(const it of S.inv){if(it.slot!==slot)continue;const sc=itemScore(it,c);if(sc>bs){bs=sc;best=it;}}return best?{it:best,score:bs}:null;}
+function slotUpgrade(c,slot){const b=bestInvFor(slot,c);if(!b)return false;const cur=c.equip[slot];return b.score>(cur?itemScore(cur,c):0)+0.5;}
 /* stat change if `candidate` replaces what's in `slot` — returns colored chips */
 const DELTA_LABEL={patt:'pATT',matt:'mATT',pdef:'pDEF',mdef:'mDEF',dodge:'DODGE',crit:'CRIT',hp:'HP'};
 function deltaHtml(candidate,slot,c){
@@ -317,10 +330,13 @@ function paintInv(){
   if(mergeSel)items=items.filter(i=>i!==mergeSel&&sameFamily(i,mergeSel));
   if(!items.length)host.appendChild(el('div','hint',
     mergeSel?'NO MATCHING ITEM — NEED SAME BASE, AFFIXES AND +LEVEL':'NOTHING HERE YET — DELVE FOR LOOT'));
+  const who=sheetChar||S.player;
   for(const it of items){
     const d=el('div','item');
-    let inHtml='<b>'+itemName(it)+'</b><i>T'+it.tier+' '+it.slot.toUpperCase()+' · '+statLine(it)+'</i>';
-    if(invFilter)inHtml+=deltaHtml(it,invFilter,sheetChar||S.player);   // stat change vs equipped
+    let sub='T'+it.tier+' '+it.slot.toUpperCase()+' · '+statLine(it);
+    if(offClassWeapon(it,who))sub+=' · <span class="offc">OFF-CLASS</span>';
+    let inHtml='<b>'+itemName(it)+'</b><i>'+sub+'</i>';
+    if(invFilter)inHtml+=deltaHtml(it,invFilter,who);   // stat change vs equipped
     d.appendChild(el('div','in',inHtml));
     const ops=el('div','iops');
     if(mergeSel){

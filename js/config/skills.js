@@ -48,3 +48,12 @@ export const ARCHETYPES={
        d:'+50% mDEF, whole team, 7s.'}]},
 };
 export const ARCH_KEYS=Object.keys(ARCHETYPES);
+/* how much each class values a stat — powers the class-aware "upgrade" indicator so
+   a mage isn't told a heavy pATT weapon is a step up. hp is weighted down (big numbers). */
+export const STAT_WEIGHTS={
+  fighter:{patt:2,pdef:1.4,crit:1.2,dodge:1,mdef:.5,hp:.15,matt:.1},
+  rogue:  {patt:1.8,dodge:1.8,crit:1.8,pdef:.6,mdef:.4,hp:.12,matt:.1},
+  mage:   {matt:2.2,mdef:1.1,crit:1.2,dodge:.8,pdef:.4,hp:.12,patt:.1},
+  cleric: {matt:1.6,mdef:1.2,pdef:1,patt:.6,crit:.6,dodge:.6,hp:.18},
+  healer: {matt:1.8,mdef:1.4,pdef:.7,dodge:.6,crit:.4,hp:.15,patt:.1},
+};
