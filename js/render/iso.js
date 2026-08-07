@@ -13,19 +13,26 @@ export function bindCanvas(canvas){
 }
 export function fitCanvas(){
   if(!cv)return;
-  const cssW=cv.getBoundingClientRect().width||360;
+  const wrap=cv.parentElement||cv;
+  const cssW=wrap.clientWidth||cv.getBoundingClientRect().width||360;
+  const cssH=wrap.clientHeight||Math.round(cssW*1.02);
   const dpr=window.devicePixelRatio||1;
   const k=Math.max(1,Math.round(dpr*cssW/330));
   VW=Math.max(240,Math.floor(cssW*dpr/k));
-  VH=Math.round(VW*1.02);
+  VH=Math.max(200,Math.floor(cssH*dpr/k));
   cv.width=VW;cv.height=VH;
-  cv.style.height=(cssW*VH/VW)+'px';
+  cv.style.width='100%';cv.style.height=cssH+'px';
   g.imageSmoothingEnabled=false;
 }
+/* pinch/scroll zoom — the whole world is drawn under a scale transform, so scr()
+   stays in base space and only unscr() (screen→world) unwinds the zoom. */
+let Z=1; export const ZMIN=0.62, ZMAX=2.6;
+export const getZoom=()=>Z;
+export function setZoom(z){Z=Math.max(ZMIN,Math.min(ZMAX,z));}
 export const scr=(x,y)=>[(x-D.cam.x)*(TW/2)-(y-D.cam.y)*(TW/2)+VW/2,
   (x-D.cam.x)*(TH/2)+(y-D.cam.y)*(TH/2)+VH*0.42];
 export function unscr(px,py){
-  const ox=px-VW/2,oy=py-VH*0.42;
+  const ox=(px-VW/2)/Z,oy=(py-VH*0.42)/Z;
   return [D.cam.x+(ox/(TW/2)+oy/(TH/2))/2, D.cam.y+(oy/(TH/2)-ox/(TW/2))/2];
 }
 export function canvasPoint(e){
@@ -37,7 +44,10 @@ function flick(t,ph){return .82+.18*Math.sin(t/95+ph)+.07*Math.sin(t/41+ph*2.7);
 export function render(t){
   if(!cv)return;
   g.fillStyle='#050409';g.fillRect(0,0,VW,VH);
-  const cxi=D.cam.x|0,cyi=D.cam.y|0,RAD=Math.ceil(VW/TW)+7;
+  g.save();
+  g.translate(VW/2,VH*0.42);g.scale(Z,Z);g.translate(-VW/2,-VH*0.42);
+  const cxi=D.cam.x|0,cyi=D.cam.y|0,RAD=Math.ceil(VW/(TW*Z))+8;
+  const MX=(VW/2)/Z+TW, MY=(VH*0.6)/Z+72;
   const lanterns=D.units.filter(u=>u.alive&&u.side==='party');
   for(let s=-RAD;s<=RAD;s++)for(let d2=-RAD;d2<=RAD;d2++){
     const x=cxi+s,y=cyi+d2;
@@ -45,7 +55,7 @@ export function render(t){
     const i=idx(x,y),tl=W.tiles[i];
     if(!tl)continue;
     const [sx,sy]=scr(x,y);
-    if(sx<-TW||sx>VW+TW||sy<-64||sy>VH+72)continue;
+    if(sx<VW/2-MX||sx>VW/2+MX||sy<VH*0.42-MY||sy>VH*0.42+MY)continue;
     if(tl===FLOOR){
       g.fillStyle=W.cFloor[i];
       g.beginPath();
@@ -156,6 +166,7 @@ export function render(t){
     g.beginPath();g.ellipse(sx,sy+4,8+ph*8,4+ph*4,0,0,6.29);g.stroke();
     g.fillStyle='#5FE0F0';g.fillRect(sx-1,sy-8,2,10);
   }
+  g.restore();
   /* vignette */
   const vg=g.createRadialGradient(VW/2,VH*.44,VH*.30,VW/2,VH*.44,VH*.78);
   vg.addColorStop(0,'rgba(5,3,8,0)');vg.addColorStop(1,'rgba(5,3,8,.88)');
@@ -210,5 +221,45 @@ function drawMini(){
     if(u.side==='foe'&&!W.fog[idx(u.x|0,u.y|0)])continue;
     g.fillStyle=u.side==='party'?(u.char.isPlayer?'#E8C46A':'#5FE0F0'):'#C4552B';
     g.fillRect(mx+u.x*px2-1,my+u.y*px2-1,2.5,2.5);
+  }
+  /* tap-to-expand affordance */
+  g.fillStyle='rgba(232,196,106,.9)';g.font='7px monospace';g.textAlign='right';
+  g.fillText('⤢ MAP',mx+MS,my+MS+9);g.textAlign='left';
+}
+/* is a client-space point inside the on-canvas minimap? */
+export function minimapHitClient(clientX,clientY){
+  if(!cv)return false;
+  const r=cv.getBoundingClientRect();
+  const px=(clientX-r.left)*VW/r.width, py=(clientY-r.top)*VH/r.height;
+  const MS=Math.round(VW*0.24), mx=VW-MS-6, my=6;
+  return px>=mx-6&&px<=mx+MS+6&&py>=my-6&&py<=my+MS+12;
+}
+/* full explored-map render into an arbitrary canvas (the overlay sheet) */
+export function renderFullMap(canvas){
+  if(!canvas||!W.tiles)return;
+  const cell=6,pad=6;
+  canvas.width=W.mw*cell+pad*2;canvas.height=W.mh*cell+pad*2;
+  const x2=canvas.getContext('2d');x2.imageSmoothingEnabled=false;
+  x2.fillStyle='#07060d';x2.fillRect(0,0,canvas.width,canvas.height);
+  for(let y=0;y<W.mh;y++)for(let x=0;x<W.mw;x++){
+    const i=idx(x,y),t=W.tiles[i];if(!t)continue;
+    const seen=W.fog&&W.fog[i];
+    let col;
+    if(!seen)col=t===FLOOR?'#100d18':'#0b0912';
+    else if(t===FLOOR){const l=W.light?W.light[i]:.4;
+      col='rgb('+(38+l*78|0)+','+(32+l*58|0)+','+(42+l*44|0)+')';}
+    else col='#231b2e';
+    x2.fillStyle=col;x2.fillRect(pad+x*cell,pad+y*cell,cell,cell);
+  }
+  if(W.torches)for(const to of W.torches){
+    const i=idx(to.x|0,to.y|0);
+    if(W.fog&&W.fog[i]){x2.fillStyle='#E8A03C';x2.fillRect(pad+(to.x*cell|0)-1,pad+(to.y*cell|0)-1,2,2);}
+  }
+  for(const u of D.units){
+    if(!u.alive)continue;
+    if(u.side==='foe'&&!(W.fog&&W.fog[idx(u.x|0,u.y|0)]))continue;
+    x2.fillStyle=u.side==='party'?(u.char.isPlayer?'#E8C46A':'#5FE0F0'):'#C4552B';
+    const s=u.side==='party'?5:3.5;
+    x2.fillRect(pad+u.x*cell-s/2,pad+u.y*cell-s/2,s,s);
   }
 }

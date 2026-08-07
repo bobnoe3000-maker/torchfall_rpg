@@ -9,7 +9,7 @@ import {itemName,sameFamily,tryMerge} from '../game/loot.js';
 import {scaledStats} from '../game/stats.js';
 import {sysRng,RI,pick} from '../core/rng.js';
 import {on,emit} from '../core/bus.js';
-import {canvasPoint,bindCanvas} from '../render/iso.js';
+import {canvasPoint,bindCanvas,fitCanvas,getZoom,setZoom,minimapHitClient,renderFullMap} from '../render/iso.js';
 import {wipeSave} from '../core/save.js';
 
 const $=id=>document.getElementById(id);
@@ -42,7 +42,7 @@ export function show(id){
 }
 function closeSheets(){for(const s of document.querySelectorAll('.osheet'))s.classList.remove('on');$('veil').classList.remove('on');}
 function openSheet(id){$('veil').classList.add('on');$(id).classList.add('on');}
-$('veil').onclick=closeSheets;
+$('veil').onclick=()=>{closeSheets();if(S.screen==='scr-delve')D.paused=false;};
 
 /* ═══ CREATE ═══ */
 let draft=null;
@@ -107,8 +107,9 @@ $('tw-wipe').onclick=()=>{
 };
 function beginDelve(depth){
   [S.player,...S.team].forEach(c=>{refresh(c);c.hp=c.maxhp;c.skillRanks=ranks(c);});
-  startDelve(depth);
+  startDelve(depth);setZoom(1);
   buildHud();show('scr-delve');
+  requestAnimationFrame(()=>fitCanvas());   // size the canvas once the screen is laid out
 }
 /* ═══ TAVERN ═══ */
 export function fillTavern(){
@@ -249,7 +250,7 @@ function paintInv(){
         if(c.equip[invFilter])S.inv.push(c.equip[invFilter]);
         c.equip[invFilter]=it;S.inv=S.inv.filter(x=>x!==it);
         refresh(c);persist();closeSheets();
-        if(S.screen==='scr-town'){openCharSheet(c);}else emit('hud');
+        openCharSheet(c);emit('hud');   // reopen sheet in town & delve (delve stays paused)
         toast('EQUIPPED: '+itemName(it).toUpperCase());
       };
       ops.appendChild(b);
@@ -269,16 +270,29 @@ function paintInv(){
   $('inv-back').onclick=()=>{invFilter=null;mergeSel=null;paintInv();};
 }
 /* ═══ DELVE HUD ═══ */
+const ROLE={fighter:'FTR',rogue:'ROG',mage:'MAG',cleric:'CLR',healer:'HLR'};
+const stCell=(k,v,cls)=>'<div class="st"><span class="k">'+k+'</span><span class="v'+(cls?' '+cls:'')+'">'+v+'</span></div>';
 export function buildHud(){
   $('hud-depth').textContent='FLOOR '+S.depth;
   $('hud-silver').textContent=S.silver+'s';
   const pf=$('hud-party');pf.innerHTML='';
   for(const u of D.units.filter(u=>u.side==='party')){
-    const d=el('div','pf');d.dataset.id=u.char.id;
-    const cnv=el('canvas');d.appendChild(cnv);portrait(u.char,cnv,1);
-    d.appendChild(el('div','pfhp','<div class="pfin"></div>'));
-    d.onclick=()=>{D.paused=true;openCharSheet(u.char);};
+    const c=u.char;
+    const d=el('div','pf'+(c.isPlayer?' lead':''));d.dataset.id=c.id;
+    const port=el('div','port');
+    const cnv=el('canvas');port.appendChild(cnv);
+    port.appendChild(el('span','lv','L'+c.lv));
+    d.appendChild(port);
+    if(c.isPlayer)d.appendChild(el('span','flag','⚑'));
+    const info=el('div','pinfo');
+    info.appendChild(el('div','pname',c.name.toUpperCase()+' <span class="role">· '+(ROLE[c.arch]||'—')+'</span>'));
+    const hp=el('div','hpwrap');hp.appendChild(el('div','hpfill'));hp.appendChild(el('div','hpnum'));
+    info.appendChild(hp);
+    info.appendChild(el('div','grid'));
+    d.appendChild(info);
+    d.onclick=()=>{D.paused=true;openCharSheet(c);};
     pf.appendChild(d);
+    portrait(c,cnv,1);cnv.style.width='100%';cnv.style.height='auto';
   }
   const sb=$('hud-skills');sb.innerHTML='';
   const p=S.player;
@@ -299,11 +313,21 @@ export function syncHud(){
   for(const d of $('hud-party').children){
     const u=D.units.find(u=>u.char&&u.char.id===d.dataset.id);
     if(!u)continue;
-    const inb=d.querySelector('.pfin');
-    if(inb){
-      const mh=u.char.stats?u.char.stats.hp:1;
-      inb.style.width=Math.max(0,u.hp/mh*100)+'%';
-      d.classList.toggle('dead',!u.alive);
+    const st=u.char.stats||{}, mh=st.hp||u.maxhp||1, f=Math.max(0,u.hp/mh);
+    const fill=d.querySelector('.hpfill');
+    if(fill){fill.style.width=(f*100)+'%';
+      fill.style.background=f>.5?'#5FBE6A':f>.25?'#E8A03C':'#C4552B';}
+    const num=d.querySelector('.hpnum');
+    if(num)num.textContent=Math.max(0,Math.round(u.hp))+'/'+Math.round(mh);
+    d.classList.toggle('dead',!u.alive);
+    const grid=d.querySelector('.grid');
+    if(grid){
+      const phys=(st.patt||0)>=(st.matt||0);
+      const atk=Math.round(Math.max(st.patt||0,st.matt||0));
+      grid.innerHTML=stCell('ATK',atk,phys?'phy':'mag')
+        +stCell('DEF',Math.round(st.pdef||0)+'·'+Math.round(st.mdef||0))
+        +stCell('CRT',Math.round(st.crit||0)+'%')
+        +stCell('DDG',Math.round(st.dodge||0)+'%');
     }
   }
   const p=playerBody();
@@ -333,18 +357,54 @@ $('hud-retreat').onclick=()=>{
 $('hud-down').onclick=()=>{writeBack();beginFloor(S.depth+1);};
 $('hud-up').onclick=()=>{if(S.depth>1){writeBack();beginFloor(S.depth-1);}else toast('THE SURFACE IS THROUGH TOWN — RETREAT');};
 function beginFloor(d){
-  startDelve(d);buildHud();
+  startDelve(d);setZoom(1);buildHud();
+  requestAnimationFrame(()=>fitCanvas());
   toast('FLOOR '+d+(d>S.depth-1?' — THE DARK THICKENS':''));
 }
 function writeBack(){
   for(const u of D.units)if(u.side==='party'&&u.char)u.char.hp=Math.max(1,Math.round(u.hp));
 }
-/* canvas taps = rally / manual move */
+/* canvas gestures: one-finger tap = rally / open map · two-finger pinch = zoom */
+function openMap(){
+  D.paused=true;
+  renderFullMap($('map-cv'));
+  openSheet('sh-map');
+}
 export function initCanvasInput(canvas){
+  const pts=new Map();
+  let pinchStart=0, zoomStart=1, down=null, moved=false;
   canvas.addEventListener('pointerdown',e=>{
-    const [wx,wy]=canvasPoint(e);
-    D.rally={x:wx,y:wy};
+    canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===2){
+      const [a,b]=[...pts.values()];
+      pinchStart=Math.hypot(a.x-b.x,a.y-b.y);zoomStart=getZoom();moved=true;
+    } else { down={x:e.clientX,y:e.clientY};moved=false; }
   });
+  canvas.addEventListener('pointermove',e=>{
+    if(!pts.has(e.pointerId))return;
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size>=2&&pinchStart>0){
+      const [a,b]=[...pts.values()];
+      setZoom(zoomStart*Math.hypot(a.x-b.x,a.y-b.y)/pinchStart);
+    } else if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>10){moved=true;}
+  });
+  const end=e=>{
+    const tap=pts.size===1&&!moved&&down;
+    const cx=e.clientX,cy=e.clientY;
+    pts.delete(e.pointerId);
+    if(pts.size<2)pinchStart=0;
+    if(tap){
+      if(minimapHitClient(cx,cy))openMap();
+      else{const [wx,wy]=canvasPoint(e);D.rally={x:wx,y:wy};}
+    }
+    if(pts.size===0){down=null;moved=false;}
+  };
+  canvas.addEventListener('pointerup',end);
+  canvas.addEventListener('pointercancel',end);
+  canvas.addEventListener('wheel',e=>{
+    e.preventDefault();setZoom(getZoom()*(e.deltaY<0?1.12:0.9));
+  },{passive:false});
 }
 /* ═══ DEATH ═══ */
 on('player-dead',()=>{
