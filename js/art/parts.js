@@ -654,5 +654,6 @@ export function rollPal(rng){
   const mg=P([['#5FE0F0','#CFF6FC'],['#B08CFF','#E4D2FF'],['#7CE08A','#D2FBD8'],['#E8C05A','#FBEBB0']]);
   return {o:'#14101A',1:pr[0],2:pr[1],3:pr[2],5:sc[0],6:sc[1],
     s:sk.s,S:sk.S,n:sk.n,q:ac[0],Q:ac[1],x:mg[0],X:mg[1],
-    e:'#181218',y:'#FBF2D6',w:'#C9C2AE',W:'#EFE9D6'};
+    e:'#181218',y:'#FBF2D6',w:'#C9C2AE',W:'#EFE9D6',
+    l:'#6B4F30',L:'#8A6A44'};   // wood/leather grips & hafts (were undefined → rendered magenta)
 }

@@ -4,6 +4,7 @@ import {rollPal,HEADS,TORSOS,ARMS,LEGS} from '../art/parts.js';
 import {sysRng,RI,pick} from '../core/rng.js';
 import {saveGame,loadGame} from '../core/save.js';
 import {derive} from './stats.js';
+import {starterItem} from './loot.js';
 
 export const S={
   screen:'boot', player:null, team:[], inv:[], silver:BAL.startingSilver,
@@ -22,13 +23,19 @@ export function randRecipe(rng,arch){
 }
 export function makeCharacter(arch,recipe,pal,isPlayer){
   const a=ARCHETYPES[arch];
-  return {
+  const caster=a.weaponBias&&a.weaponBias[0]==='raise';   // casters start with a wand
+  const c={
     id:'c'+(S.seedCounter++), name:pick(sysRng,NAMES), arch, isPlayer:!!isPlayer,
     recipe, pal, lv:1, xp:0, pts:BAL.statPointsPerLevel,
     base:{...a.stats}, assigned:{patt:0,matt:0,pdef:0,mdef:0,dodge:0,crit:0},
     skillRanks:[1,0,0], equip:{weapon:null,offhand:null,armor:null,boots:null},
     buffs:[], hp:0, alive:true,
   };
+  /* everyone starts kitted out in basic wooden/cloth gear */
+  c.equip.weapon=starterItem(caster?'Wooden Wand':'Wooden Sword');
+  c.equip.armor =starterItem('Cloth Tunic');
+  c.equip.boots =starterItem('Worn Boots');
+  return c;
 }
 export function refresh(u){
   const d=derive(u);

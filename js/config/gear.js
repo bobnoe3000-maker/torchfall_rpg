@@ -26,6 +26,11 @@ export const GEAR_BASES=[
  {slot:'boots', part:0, n:'Boots', st:{dodge:3}},
  {slot:'boots', part:1, n:'Greaves', st:{pdef:4}},
  {slot:'boots', part:6, n:'Striders', st:{dodge:5}},
+ // ── starter kit — excluded from random loot (see loot.js), given at character creation ──
+ {slot:'weapon', part:1, n:'Wooden Sword', kind:'swing', st:{patt:2}, starter:true},
+ {slot:'weapon', part:7, n:'Wooden Wand',  kind:'raise', st:{matt:2}, starter:true},
+ {slot:'armor',  part:0, n:'Cloth Tunic',  st:{pdef:2,mdef:1}, starter:true},
+ {slot:'boots',  part:0, n:'Worn Boots',   st:{dodge:2}, starter:true},
 ];
 export const PREFIXES=[
  {n:'Fiery',    st:{matt:5},  proc:'burn'},

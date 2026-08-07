@@ -3,7 +3,7 @@ import {S,makeCharacter,randRecipe,refresh,partyUnits,persist,restore,grantXp} f
 import {D,startDelve} from '../game/combat.js';
 import {ARCHETYPES,ARCH_KEYS,STAT_WEIGHTS} from '../config/skills.js';
 import {BAL} from '../config/balance.js';
-import {rollPal} from '../art/parts.js';
+import {rollPal,WEAPONS,OFFHANDS,TORSOS,LEGS} from '../art/parts.js';
 import {getFrame} from '../art/assemble.js';
 import {itemName,sameFamily,tryMerge} from '../game/loot.js';
 import {scaledStats} from '../game/stats.js';
@@ -14,6 +14,31 @@ import {wipeSave} from '../core/save.js';
 
 const $=id=>document.getElementById(id);
 const el=(tag,cls,html)=>{const d=document.createElement(tag);if(cls)d.className=cls;if(html!=null)d.innerHTML=html;return d;};
+/* ── real item icons: render the item's actual gear sprite (not an emoji) ── */
+const ICON_PAL={o:'#0d0a12',1:'#5a4a63',2:'#786688',3:'#9a86ad',5:'#4a3a2a',6:'#6e5840',
+  s:'#c9a06a',S:'#e6c48e',n:'#8a6a44',q:'#b98a3a',Q:'#e8c46a',x:'#5FE0F0',X:'#CFF6FC',
+  w:'#C9C2AE',W:'#EFE9D6',l:'#6B4F30',L:'#8A6A44',e:'#181218',y:'#FBF2D6'};
+const PART_SET={weapon:WEAPONS,offhand:OFFHANDS,armor:TORSOS,boots:LEGS};
+function bakeGrid(rows,pal){
+  const h=rows.length,w=rows[0].length;
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const g=c.getContext('2d');
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const ch=rows[y][x];if(!ch||ch==='.')continue;g.fillStyle=pal[ch]||'#f0f';g.fillRect(x,y,1,1);}
+  return c;
+}
+/* returns an icon box element (fixed size, sprite centered & pixel-scaled) */
+function itemIconEl(it,box){
+  box=box||30;
+  const wrap=el('div','iconbox');wrap.style.width=wrap.style.height=box+'px';
+  const def=(PART_SET[it.slot]||[])[it.part];
+  if(def&&def.g){
+    const cv=bakeGrid(def.g,ICON_PAL);
+    const k=Math.max(1,Math.floor((box-4)/Math.max(cv.width,cv.height)));
+    cv.style.width=(cv.width*k)+'px';cv.style.height=(cv.height*k)+'px';
+    cv.style.imageRendering='pixelated';wrap.appendChild(cv);
+  } else wrap.textContent='▪';
+  return wrap;
+}
 export function toast(msg){
   const t=$('toast');t.textContent=msg;t.classList.add('on');
   clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),1400);
@@ -213,17 +238,17 @@ function paintDollSlots(c){
   for(const slot of SLOTS){
     const cell=document.querySelector('#sh-char .slot-'+slot); if(!cell)continue;
     const it=c.equip[slot];
-    const upg=slotUpgrade(c,slot)?'<span class="upg" title="Better gear in your pack">▲</span>':'';
+    const slotDiv=el('div','slot'+(it?(' '+itemRarity(it)):' empty'));
     if(it){
-      const gem=(it.procs&&it.procs[0])?'<span class="gem '+(PROC_GEM[it.procs[0]]||'ward')+'"></span>':'';
-      cell.innerHTML='<div class="slot '+itemRarity(it)+'"><span class="tier">T'+it.tier+'</span>'
-        +(it.plus?'<span class="plus">+'+it.plus+'</span>':'')+'<span class="ic">'+SLOT_ICON[slot]+'</span>'+gem+upg+'</div>'
-        +'<div class="slotlabel">'+slot.toUpperCase()+'<b>'+itemName(it).replace(/\s*\(\+\d+\)$/,'')+'</b></div>';
-    } else {
-      cell.innerHTML='<div class="slot empty"><span class="ic">'+SLOT_ICON[slot]+'</span>'+upg+'</div>'
-        +'<div class="slotlabel">'+slot.toUpperCase()+'<b>—</b></div>';
-    }
-    cell.querySelector('.slot').onclick=()=>openInv(slot);
+      slotDiv.appendChild(el('span','tier','T'+it.tier));
+      if(it.plus)slotDiv.appendChild(el('span','plus','+'+it.plus));
+      slotDiv.appendChild(itemIconEl(it,48));                 // real item sprite
+      if(it.procs&&it.procs[0])slotDiv.appendChild(el('span','gem '+(PROC_GEM[it.procs[0]]||'ward')));
+    } else slotDiv.appendChild(el('span','ic',SLOT_ICON[slot]));
+    if(slotUpgrade(c,slot)){const u=el('span','upg','▲');u.title='Better gear in your pack';slotDiv.appendChild(u);}
+    cell.innerHTML='';cell.appendChild(slotDiv);
+    cell.appendChild(el('div','slotlabel',slot.toUpperCase()+'<b>'+(it?itemName(it).replace(/\s*\(\+\d+\)$/,''):'—')+'</b>'));
+    slotDiv.onclick=()=>openInv(slot);
   }
 }
 function paintStatRows(c){
@@ -385,12 +410,17 @@ function statLine(it){
 function paintInv(){
   $('inv-title').textContent=invFilter?('EQUIP: '+invFilter.toUpperCase()):
     (mergeSel?'MERGE — PICK A MATCHING ITEM':'INVENTORY');
+  /* keep the character we're equipping for named at the top */
+  const whoLine=$('inv-who');
+  if(invFilter&&sheetChar){whoLine.textContent='FOR '+sheetChar.name.toUpperCase()+' · '+ARCHETYPES[sheetChar.arch].n.toUpperCase();whoLine.style.display='';}
+  else whoLine.style.display='none';
   const host=$('inv-list');host.innerHTML='';
   /* when swapping a slot, offer to unequip the current piece */
   if(invFilter){
     const c=sheetChar||S.player, cur=c.equip[invFilter];
     if(cur){
       const d=el('div','item');
+      d.appendChild(itemIconEl(cur,30));
       d.appendChild(el('div','in','<b>EQUIPPED · '+itemName(cur)+'</b><i>T'+cur.tier+' '+invFilter.toUpperCase()+' · '+statLine(cur)+'</i>'));
       const ops=el('div','iops');
       const un=el('button','ghost','UNEQUIP');
@@ -411,6 +441,7 @@ function paintInv(){
     if(offClassWeapon(it,who))sub+=' · <span class="offc">OFF-CLASS</span>';
     let inHtml='<b>'+itemName(it)+'</b><i>'+sub+'</i>';
     if(invFilter)inHtml+=deltaHtml(it,invFilter,who);   // stat change vs equipped
+    d.appendChild(itemIconEl(it,30));                   // real item sprite next to the name
     d.appendChild(el('div','in',inHtml));
     const ops=el('div','iops');
     if(mergeSel){
@@ -601,3 +632,8 @@ document.querySelectorAll('.osheet .x').forEach(b=>b.onclick=()=>{
   closeSheets();
   if(S.screen==='scr-delve')D.paused=false;
 });
+/* closing the equip list returns to the character sheet, not out to the delve/town */
+$('sh-inv').querySelector('.x').onclick=()=>{
+  if(invFilter&&sheetChar){$('sh-inv').classList.remove('on');openCharSheet(sheetChar);}
+  else{closeSheets();if(S.screen==='scr-delve')D.paused=false;}
+};

@@ -213,7 +213,10 @@ canvas{image-rendering:pixelated}
 #sh-char .loadd .lbl{font-family:var(--px);font-size:8px;color:var(--ash);letter-spacing:.06em}
 #sh-char .addchip{font-family:var(--px);font-size:9px;min-height:36px;padding:8px 11px;
  background:#12211f;border:1px solid #2e7d8a;color:var(--rune)}
-.item{display:flex;gap:9px;align-items:center;padding:12px 0;border-bottom:1px solid #1c1726}
+.iconbox{display:flex;align-items:center;justify-content:center;line-height:0;flex:none;color:#57506A}
+.iconbox canvas{image-rendering:pixelated}
+.item{display:flex;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid #1c1726}
+.item .iconbox{background:#0a0710;border:1px solid #241d2e;border-radius:2px}
 .item .in{flex:1;font-size:15px}
 .item .in i{display:block;color:var(--ash);font-size:10px;font-family:var(--px);letter-spacing:.03em;margin-top:4px;font-style:normal}
 .item .delta{display:flex;flex-wrap:wrap;gap:5px 9px;margin-top:6px;font-family:var(--px);font-size:9px;letter-spacing:.02em}

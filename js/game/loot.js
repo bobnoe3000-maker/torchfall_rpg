@@ -2,8 +2,15 @@ import {GEAR_BASES,PREFIXES,SUFFIXES} from '../config/gear.js';
 import {BAL} from '../config/balance.js';
 import {RI,pick} from '../core/rng.js';
 let nextId=1;
+const LOOT_BASES=GEAR_BASES.filter(b=>!b.starter);   // starter kit never drops
+/* a plain, affix-free item built from a base by name — used for starting gear */
+export function starterItem(name){
+  const base=GEAR_BASES.find(b=>b.n===name); if(!base)return null;
+  return {id:nextId++,base:GEAR_BASES.indexOf(base),slot:base.slot,part:base.part,
+    kind:base.kind||null,tier:1,plus:0,st:{...base.st},procs:[],pre:-1,suf:-1};
+}
 export function genItem(rng,tier,lootMult){
-  const base=pick(rng,GEAR_BASES);
+  const base=pick(rng,LOOT_BASES);
   const it={id:nextId++,base:GEAR_BASES.indexOf(base),slot:base.slot,part:base.part,
     kind:base.kind||null,tier,plus:0,st:{...base.st},procs:[],pre:-1,suf:-1};
   if(rng()< .62*(lootMult||1)){
