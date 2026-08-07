@@ -163,6 +163,26 @@ const SLOTS=['weapon','offhand','armor','boots'];
 const SLOT_ICON={weapon:'🗡️',offhand:'🛡️',armor:'🥋',boots:'🥾'};
 const PROC_GEM={burn:'burn',poison:'dodge',slow:'slow',leech:'ward'};
 function itemRarity(it){const n=(it.pre>=0?1:0)+(it.suf>=0?1:0);return (it.plus>=1||n>=2)?'rare':(n>=1?'magic':'');}
+/* rough "is this more gear" score — powers the upgrade dot (heuristic, hp weighted down) */
+function itemScore(it){const s=scaledStats(it);let v=0;for(const k in s)v+=(k==='hp'?s[k]*0.25:s[k]);return v+((it.procs&&it.procs.length)||0)*4;}
+function bestInvFor(slot){let best=null,bs=-1;for(const it of S.inv){if(it.slot!==slot)continue;const sc=itemScore(it);if(sc>bs){bs=sc;best=it;}}return best?{it:best,score:bs}:null;}
+function slotUpgrade(c,slot){const b=bestInvFor(slot);if(!b)return false;const cur=c.equip[slot];return b.score>(cur?itemScore(cur):0)+0.5;}
+/* stat change if `candidate` replaces what's in `slot` — returns colored chips */
+const DELTA_LABEL={patt:'pATT',matt:'mATT',pdef:'pDEF',mdef:'mDEF',dodge:'DODGE',crit:'CRIT',hp:'HP'};
+function deltaHtml(candidate,slot,c){
+  const cand=scaledStats(candidate), cur=c.equip[slot]?scaledStats(c.equip[slot]):{};
+  const parts=[];
+  for(const k of ['patt','matt','pdef','mdef','dodge','crit','hp']){
+    const d=Math.round((cand[k]||0)-(cur[k]||0)); if(!d)continue;
+    const pct=(k==='dodge'||k==='crit')?'%':'';
+    parts.push('<span class="'+(d>0?'up':'dn')+'">'+DELTA_LABEL[k]+' '+(d>0?'▲+':'▼')+d+pct+'</span>');
+  }
+  const cp=candidate.procs||[], ep=c.equip[slot]?(c.equip[slot].procs||[]):[];
+  for(const p of cp)if(!ep.includes(p))parts.push('<span class="pc">+'+p.toUpperCase()+'</span>');
+  for(const p of ep)if(!cp.includes(p))parts.push('<span class="dn">−'+p.toUpperCase()+'</span>');
+  if(!parts.length)parts.push('<span class="flat">NO STAT CHANGE</span>');
+  return '<div class="delta">'+parts.join('')+'</div>';
+}
 function openCharSheet(c){
   sheetChar=c; sheetTab='stats'; pend={patt:0,matt:0,pdef:0,mdef:0,dodge:0,crit:0};
   paintCharSheet(); openSheet('sh-char');
@@ -171,13 +191,14 @@ function paintDollSlots(c){
   for(const slot of SLOTS){
     const cell=document.querySelector('#sh-char .slot-'+slot); if(!cell)continue;
     const it=c.equip[slot];
+    const upg=slotUpgrade(c,slot)?'<span class="upg" title="Better gear in your pack">▲</span>':'';
     if(it){
       const gem=(it.procs&&it.procs[0])?'<span class="gem '+(PROC_GEM[it.procs[0]]||'ward')+'"></span>':'';
       cell.innerHTML='<div class="slot '+itemRarity(it)+'"><span class="tier">T'+it.tier+'</span>'
-        +(it.plus?'<span class="plus">+'+it.plus+'</span>':'')+'<span class="ic">'+SLOT_ICON[slot]+'</span>'+gem+'</div>'
+        +(it.plus?'<span class="plus">+'+it.plus+'</span>':'')+'<span class="ic">'+SLOT_ICON[slot]+'</span>'+gem+upg+'</div>'
         +'<div class="slotlabel">'+slot.toUpperCase()+'<b>'+itemName(it).replace(/\s*\(\+\d+\)$/,'')+'</b></div>';
     } else {
-      cell.innerHTML='<div class="slot empty"><span class="ic">'+SLOT_ICON[slot]+'</span></div>'
+      cell.innerHTML='<div class="slot empty"><span class="ic">'+SLOT_ICON[slot]+'</span>'+upg+'</div>'
         +'<div class="slotlabel">'+slot.toUpperCase()+'<b>—</b></div>';
     }
     cell.querySelector('.slot').onclick=()=>openInv(slot);
@@ -230,7 +251,7 @@ function paintSkillRows(c){
 function paintCharSheet(){
   const c=sheetChar; if(!c)return;
   autoSkills(c); refresh(c);
-  portrait(c,$('ch-face'),3);
+  portrait(c,$('ch-face'),2);
   $('ch-name').textContent=c.name+(c.isPlayer?' (YOU)':'');
   $('ch-sub').textContent=ARCHETYPES[c.arch].n+' · LV '+c.lv+' · '+Math.round(c.hp)+'/'+c.maxhp+' HP';
   const xpNeed=BAL.xpCurve(c.lv);
@@ -298,7 +319,9 @@ function paintInv(){
     mergeSel?'NO MATCHING ITEM — NEED SAME BASE, AFFIXES AND +LEVEL':'NOTHING HERE YET — DELVE FOR LOOT'));
   for(const it of items){
     const d=el('div','item');
-    d.appendChild(el('div','in','<b>'+itemName(it)+'</b><i>T'+it.tier+' '+it.slot.toUpperCase()+' · '+statLine(it)+'</i>'));
+    let inHtml='<b>'+itemName(it)+'</b><i>T'+it.tier+' '+it.slot.toUpperCase()+' · '+statLine(it)+'</i>';
+    if(invFilter)inHtml+=deltaHtml(it,invFilter,sheetChar||S.player);   // stat change vs equipped
+    d.appendChild(el('div','in',inHtml));
     const ops=el('div','iops');
     if(mergeSel){
       const risk=Math.round(BAL.mergeDestroyChance(mergeSel.plus+1)*100);
