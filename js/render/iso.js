@@ -181,27 +181,37 @@ function drawUnit(u,t){
   else if(u.castLock>0){anim='attack';ph=Math.min(3,Math.floor((560-u.castLock)/150));}
   else if(u.walking){anim='walk';ph=Math.floor(t/190)%4;}
   const fr=getFrame(c.recipe,c.pal,anim,ph,u.face);
+  const k=c.boss?BAL.bossScale:1;                     // bosses are drawn big
   let cf=1,sink=0;
   if(!u.alive){cf=u.deadT!==undefined?Math.max(0,Math.min(1,u.deadT/BAL.corpseMs)):1;sink=(1-cf)*3;}
   g.globalAlpha=cf;
   g.fillStyle='rgba(0,0,0,.4)';
-  g.beginPath();g.ellipse(sx,sy+2,8*cf,3*cf,0,0,6.29);g.fill();
-  const dx=sx-BOX.w/2,dy=sy-BOX.h+6+sink;
+  g.beginPath();g.ellipse(sx,sy+2,8*cf*k,3*cf*k,0,0,6.29);g.fill();
+  if(c.boss&&u.alive){                                 // menacing under-glow
+    g.globalCompositeOperation='lighter';
+    const gr=g.createRadialGradient(sx,sy-8*k,0,sx,sy-8*k,20*k);
+    gr.addColorStop(0,'rgba(200,60,40,.22)');gr.addColorStop(1,'rgba(200,60,40,0)');
+    g.fillStyle=gr;g.fillRect(sx-24*k,sy-30*k,48*k,44*k);g.globalCompositeOperation='source-over';
+  }
+  const dw=fr.width*k,dh=fr.height*k;
+  const dx=sx-dw/2,dy=sy+6-dh+sink;
   if(u.flash>0){
     g.globalCompositeOperation='lighter';g.globalAlpha=.7;
-    g.drawImage(fr,dx,dy);g.globalAlpha=cf;g.globalCompositeOperation='source-over';
+    g.drawImage(fr,dx,dy,dw,dh);g.globalAlpha=cf;g.globalCompositeOperation='source-over';
   }
-  g.drawImage(fr,dx,dy);
+  g.drawImage(fr,dx,dy,dw,dh);
   g.globalAlpha=1;
   if(u.alive){
     const mh=c.stats?c.stats.hp:c.maxhp, frac=Math.max(0,u.hp/mh);
-    g.fillStyle='rgba(0,0,0,.6)';g.fillRect(sx-8,dy-3,16,2);
-    g.fillStyle=u.side==='party'?'#5FBE6A':'#C4552B';
-    g.fillRect(sx-8,dy-3,Math.round(16*frac),2);
+    const bw=c.boss?28:16;
+    g.fillStyle='rgba(0,0,0,.6)';g.fillRect(sx-bw/2,dy-3,bw,c.boss?3:2);
+    g.fillStyle=u.side==='party'?'#5FBE6A':(c.boss?'#E8402A':'#C4552B');
+    g.fillRect(sx-bw/2,dy-3,Math.round(bw*frac),c.boss?3:2);
     for(const p of u.procsOn){
       g.fillStyle={burn:'#E8834E',poison:'#7CBE4A',slow:'#7FD8F8'}[p.k]||'#fff';
-      g.fillRect(sx-8+(u.procsOn.indexOf(p)*4),dy-6,3,2);
+      g.fillRect(sx-bw/2+(u.procsOn.indexOf(p)*4),dy-6,3,2);
     }
+    if(c.boss){g.fillStyle='#E8402A';g.font='7px monospace';g.textAlign='center';g.fillText('☠ BOSS',sx,dy-7);g.textAlign='left';}
     if(c.isPlayer){g.fillStyle='#E8C46A';g.fillRect(sx-1,dy-8,2,2);}
   }
 }

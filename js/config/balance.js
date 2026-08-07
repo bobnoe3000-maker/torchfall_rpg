@@ -26,4 +26,7 @@ export const BAL={
   respawnMs: 4600,                   // dungeon trickles in a new foe this often
   enemyCap: d=>8+Math.floor(d*1.2),  // sustained live-foe population it refills toward
   respawnMinDist: 9.5,               // new foes appear at least this far from the party
+  bossEveryN: 3,                     // a big boss guards every Nth floor
+  bossHpMult: 6.5, bossAtkMult: 1.7, bossDefMult: 1.4,
+  bossLevelBonus: 2, bossScale: 1.9, // render scale
 };

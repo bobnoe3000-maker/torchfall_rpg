@@ -33,6 +33,11 @@ export function startDelve(depth){
       D.units.push(mkEnemy(depth,x,y));
     }
   }
+  /* a big boss guards every Nth floor — placed in the farthest room */
+  if(depth%BAL.bossEveryN===0&&W.rooms.length>1){
+    const r=W.rooms[W.rooms.length-1], bx=r.cx+.5, by=r.cy+.5;
+    if(!solid(bx,by))D.units.push(mkEnemy(depth,bx,by,true));
+  }
   const p=D.units.find(u=>u.side==='party');
   D.cam.x=p.x;D.cam.y=p.y;
   D.running=true;respawnT=BAL.respawnMs;
@@ -60,12 +65,12 @@ function mkBody(char,side,x,y){
     procsOn:[],castLock:0,path:null,repath:0,walking:false,awake:side==='party',
     hp:char.hp,alive:true};
 }
-function mkEnemy(depth,x,y){
+function mkEnemy(depth,x,y,boss){
   const pool=ENEMY_TYPES.filter(t=>t.minD<=depth);
   const type=pick(D.rng,pool);
   const prePool=ENEMY_PREFIXES.filter(p=>p.minD<=depth);
-  const pre=pick(D.rng,prePool);
-  const lv=Math.max(1,BAL.enemyLevel(depth)+RI(D.rng,-1,1));
+  const pre=boss?{n:'',mult:{},lootMult:1}:pick(D.rng,prePool);
+  const lv=Math.max(1,BAL.enemyLevel(depth)+RI(D.rng,-1,1))+(boss?BAL.bossLevelBonus:0);
   const base={...type.base};
   base.hp=Math.round(base.hp*BAL.depthHp(depth)*(pre.mult.hp||1));
   base.patt=Math.round(base.patt*BAL.depthAtk(depth)*(pre.mult.patt||1));
@@ -74,12 +79,20 @@ function mkEnemy(depth,x,y){
   base.mdef=Math.round(base.mdef*(pre.mult.mdef||1));
   base.dodge=Math.round(base.dodge*(pre.mult.dodge||1));
   base.spd=base.spd*(pre.mult.spd||1);
+  if(boss){
+    base.hp=Math.round(base.hp*BAL.bossHpMult);
+    base.patt=Math.round(base.patt*BAL.bossAtkMult);
+    base.matt=Math.round(base.matt*BAL.bossAtkMult);
+    base.pdef=Math.round(base.pdef*BAL.bossDefMult);
+    base.mdef=Math.round(base.mdef*BAL.bossDefMult);
+  }
   const pal=rollPal(D.rng);
   pal.s=type.skin.s;pal.S=type.skin.S;pal.n=type.skin.n;
   if(pre.tint){pal[1]=pre.tint;pal[2]=shade(pre.tint,1.25);pal[3]=shade(pre.tint,1.55);}
-  const char={id:'e',name:(pre.n?pre.n+' ':'')+type.n,lv,recipe:{...type.recipe},pal,
+  if(boss){pal[1]='#5a1020';pal[2]=shade('#5a1020',1.5);pal[3]=shade('#5a1020',2);}
+  const char={id:'e',name:(boss?'Dread '+type.n:(pre.n?pre.n+' ':'')+type.n),lv,recipe:{...type.recipe},pal,
     stats:{...base,crit:base.crit},hp:base.hp,maxhp:base.hp,
-    proc:pre.proc||null,lootMult:pre.lootMult||1,isEnemy:true,
+    proc:boss?(pre.proc||'burn'):(pre.proc||null),lootMult:boss?4:(pre.lootMult||1),isEnemy:true,boss:!!boss,
     weaponKind: WEAPONS[type.recipe.weapon]&&WEAPONS[type.recipe.weapon].g
       ? WEAPONS[type.recipe.weapon].kind : 'punch'};
   const b=mkBody(char,'foe',x,y);
@@ -190,12 +203,14 @@ function kill(att,tgt){
   tgt.hp=0;tgt.alive=false;tgt.anim='dead';tgt.deadT=BAL.corpseMs;crumble(tgt);
   if(tgt.side==='foe'){
     D.kills++;
-    const lv=tgt.char.lv,lm=tgt.char.lootMult||1;
+    const lv=tgt.char.lv,lm=tgt.char.lootMult||1,boss=tgt.char.boss;
     D.loot.push({x:tgt.x,y:tgt.y,kind:'silver',amt:Math.round(BAL.dropSilver(S.depth)*lm),ph:D.rng()*6.3});
-    if(D.rng()<BAL.dropItemChance*lm)
-      D.loot.push({x:tgt.x+R(D.rng,-.3,.3),y:tgt.y+R(D.rng,-.3,.3),kind:'item',
+    const drops=boss?2:(D.rng()<BAL.dropItemChance*lm?1:0);   // boss always drops a couple
+    for(let n=0;n<drops;n++)
+      D.loot.push({x:tgt.x+R(D.rng,-.4,.4),y:tgt.y+R(D.rng,-.4,.4),kind:'item',
         item:genItem(D.rng,lv,lm),ph:D.rng()*6.3});
-    for(const b of D.units)if(b.side==='party'&&b.alive)grantXp(b.char,7+lv*3);
+    for(const b of D.units)if(b.side==='party'&&b.alive)grantXp(b.char,(boss?40:7)+lv*3);
+    if(boss)emit('toast',{msg:tgt.char.name.toUpperCase()+' IS SLAIN — THE FLOOR IS YOURS'});
     emit('hud');
   } else if(tgt.char.isPlayer){
     onWipeCheck();
