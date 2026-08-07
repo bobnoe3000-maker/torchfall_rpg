@@ -216,6 +216,13 @@ function float(u,txt,col){D.floaters.push({x:u.x,y:u.y,txt,col,life:850});}
 function lootColor(it){const n=(it.pre>=0?1:0)+(it.suf>=0?1:0);
   return (it.plus>=1||n>=2)?'#F0C46A':(n>=1?'#7FB0F0':'#D9CFBA');}
 /* ── skills ── */
+/* firing order for auto-cast: the character's chosen loadout, else all learned by index.
+   an explicit empty loadout means "cast nothing"; a missing one (old saves/foes) casts all. */
+export function castOrder(c){
+  const learned=[0,1,2].filter(i=>(c.skillRanks&&c.skillRanks[i]||0)>0);
+  if(!Array.isArray(c.loadout))return learned;
+  return c.loadout.filter(i=>learned.includes(i));
+}
 export function castSkill(body,si,manual){
   const arch=ARCHETYPES[body.char.arch];if(!arch)return false;
   const sk=arch.skills[si];
@@ -333,11 +340,10 @@ export function step(dt){
     const kind=c.equip.weapon?c.equip.weapon.kind:'punch';
     const rng2=BAL.attackRange[kind];
     const foe=nearest(u,'foe',11);
-    // NPC skill autopilot (player casts manually)
-    if(!c.isPlayer&&foe){
-      const arch=ARCHETYPES[c.arch];
-      for(let si=0;si<3;si++)
-        if((c.skillRanks[si]||0)>0&&u.skillCds[si]<=0&&D.rng()<.02){castSkill(u,si,false);break;}
+    // everyone auto-casts now — fire the highest-priority ready skill in the loadout
+    if(foe&&D.rng()<.03){
+      for(const si of castOrder(c))
+        if(u.skillCds[si]<=0){castSkill(u,si,false);break;}
     }
     if(u.castLock>0){separate(u,dt);continue;}
     if(foe){

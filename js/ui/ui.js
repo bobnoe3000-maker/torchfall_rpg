@@ -1,6 +1,6 @@
 /* Screens: create → town → delve; overlay sheets; HUD */
 import {S,makeCharacter,randRecipe,refresh,partyUnits,persist,restore,grantXp} from '../game/state.js';
-import {D,startDelve,castSkill,playerBody} from '../game/combat.js';
+import {D,startDelve} from '../game/combat.js';
 import {ARCHETYPES,ARCH_KEYS,STAT_WEIGHTS} from '../config/skills.js';
 import {BAL} from '../config/balance.js';
 import {rollPal} from '../art/parts.js';
@@ -237,6 +237,48 @@ function paintStatRows(c){
   $('ch-pts').textContent=avail;
   $('ch-confirm').disabled=pendSum()===0;
 }
+/* keep the loadout valid: companions auto-run all learned; the player keeps their picks */
+function ensureLoadout(c){
+  const learned=[0,1,2].filter(i=>(c.skillRanks[i]||0)>0);
+  if(!c.isPlayer){c.loadout=learned.slice(0,3);return;}
+  if(!Array.isArray(c.loadout))c.loadout=learned.slice(0,3);
+  else c.loadout=c.loadout.filter(i=>learned.includes(i));
+}
+function swapLoad(c,a,b){const l=c.loadout,t=l[a];l[a]=l[b];l[b]=t;persist();paintCharSheet();}
+function paintLoadout(c){
+  ensureLoadout(c);
+  const host=$('ch-loadout');host.innerHTML='';
+  const lo=c.loadout, learned=[0,1,2].filter(i=>(c.skillRanks[i]||0)>0);
+  if(!lo.length)host.appendChild(el('div','hint',
+    c.isPlayer?'NO SKILLS QUEUED — ADD ONE BELOW':'NONE LEARNED YET'));
+  lo.forEach((si,pos)=>{
+    const s=ARCHETYPES[c.arch].skills[si];
+    const row=el('div','lorow');
+    row.innerHTML='<span class="ord">'+(pos+1)+'</span><span class="g">'+s.g+'</span>'
+      +'<span class="nm">'+s.n+' <i>R'+c.skillRanks[si]+'</i></span>';
+    if(c.isPlayer){
+      const ctl=el('div','loctl');
+      const up=el('button',null,'▲');up.disabled=pos===0;up.onclick=()=>swapLoad(c,pos,pos-1);
+      const dn=el('button',null,'▼');dn.disabled=pos===lo.length-1;dn.onclick=()=>swapLoad(c,pos,pos+1);
+      const rm=el('button','ghost','✕');rm.onclick=()=>{c.loadout.splice(pos,1);persist();paintCharSheet();};
+      ctl.appendChild(up);ctl.appendChild(dn);ctl.appendChild(rm);row.appendChild(ctl);
+    }
+    host.appendChild(row);
+  });
+  if(c.isPlayer){
+    const addable=learned.filter(i=>!lo.includes(i));
+    if(addable.length&&lo.length<3){
+      const add=el('div','loadd');add.appendChild(el('span','lbl','ADD:'));
+      for(const i of addable){
+        const s=ARCHETYPES[c.arch].skills[i];
+        const chip=el('button','addchip',s.g+' '+s.n+' ＋');
+        chip.onclick=()=>{c.loadout.push(i);persist();paintCharSheet();};
+        add.appendChild(chip);
+      }
+      host.appendChild(add);
+    }
+  }
+}
 function paintSkillRows(c){
   const host=$('ch-skills');host.innerHTML='';
   const avail=skillAvail(c);
@@ -256,7 +298,9 @@ function paintSkillRows(c){
       +(rank?' <span class="rk">R'+rank+'</span>':'')+'</div><div class="ds">'+s.d+'</div>'
       +'<div class="pips">'+pips+'</div></div>'+act;
     if(c.isPlayer){const b=r.querySelector('button');
-      if(b&&!b.disabled)b.onclick=()=>{c.skillRanks[i]=(c.skillRanks[i]||0)+1;persist();paintCharSheet();emit('hud');
+      if(b&&!b.disabled)b.onclick=()=>{c.skillRanks[i]=(c.skillRanks[i]||0)+1;
+        if(learn&&Array.isArray(c.loadout)&&c.loadout.length<3&&!c.loadout.includes(i))c.loadout.push(i);
+        persist();paintCharSheet();emit('hud');
         toast((learn?'LEARNED ':'RANKED UP ')+s.n.toUpperCase());};}
     host.appendChild(r);
   });
@@ -275,7 +319,7 @@ function paintCharSheet(){
   $('ch-pane-stats').classList.toggle('hide',sheetTab!=='stats');
   $('ch-pane-skills').classList.toggle('hide',sheetTab!=='skills');
   document.querySelectorAll('#sh-char .tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===sheetTab));
-  paintStatRows(c); paintSkillRows(c);
+  paintStatRows(c); paintLoadout(c); paintSkillRows(c);
   const availStat=c.pts-pendSum(), availSk=skillAvail(c);
   const pb=$('ch-tab-pts'); pb.textContent=availStat; pb.classList.toggle('on',availStat>0);
   const sb=$('ch-tab-sp'); sb.textContent=availSk; sb.classList.toggle('on',availSk>0);
@@ -303,6 +347,12 @@ let invFilter=null, mergeSel=null;
 function openInv(slotFilter){
   invFilter=slotFilter;mergeSel=null;paintInv();openSheet('sh-inv');
 }
+/* true if any character already has this exact item equipped (shared inventory guard) */
+function equippedElsewhere(it){
+  for(const c of [S.player,...S.team]) if(c)
+    for(const s of SLOTS) if(c.equip&&c.equip[s]===it) return true;
+  return false;
+}
 function statLine(it){
   const st=scaledStats(it);
   return Object.entries(st).map(([k,v])=>k.toUpperCase()+'+'+v).join(' ')+
@@ -325,7 +375,7 @@ function paintInv(){
       ops.appendChild(un);d.appendChild(ops);host.appendChild(d);
     }
   }
-  let items=S.inv;
+  let items=S.inv.filter(i=>!equippedElsewhere(i));   // never offer gear worn by another hero
   if(invFilter)items=items.filter(i=>i.slot===invFilter);
   if(mergeSel)items=items.filter(i=>i!==mergeSel&&sameFamily(i,mergeSel));
   if(!items.length)host.appendChild(el('div','hint',
@@ -401,16 +451,6 @@ export function buildHud(){
     pf.appendChild(d);
     portrait(c,cnv,1);cnv.style.width='100%';cnv.style.height='auto';
   }
-  const sb=$('hud-skills');sb.innerHTML='';
-  const p=S.player;
-  ARCHETYPES[p.arch].skills.forEach((s,i)=>{
-    const b=el('button','skb',`<b>${s.g}</b><i>${s.n}</i><span class="cd"></span>`);
-    b.onclick=()=>{
-      const body=playerBody();
-      if(body&&body.alive)castSkill(body,i,true);
-    };
-    sb.appendChild(b);
-  });
   $('hud-mode').textContent=S.mode==='auto'?'⚔ AUTO':'✋ MANUAL';
   syncHud();
 }
@@ -437,16 +477,6 @@ export function syncHud(){
         +stCell('DDG',Math.round(st.dodge||0)+'%');
     }
   }
-  const p=playerBody();
-  const btns=$('hud-skills').children;
-  if(p)ARCHETYPES[p.char.arch].skills.forEach((s,i)=>{
-    const b=btns[i];if(!b)return;
-    const rk=p.char.skillRanks[i];
-    b.disabled=!p.alive||rk<1;
-    const cd=b.querySelector('.cd');
-    const f=Math.max(0,Math.min(1,p.skillCds[i]/s.cd));
-    cd.style.height=(f*100)+'%';
-  });
 }
 on('hud',syncHud);
 on('delve-start',()=>{buildHud();});
