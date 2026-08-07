@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#080710">
+<title>TORCHFALL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=IM+Fell+English&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="phone">
+
+  <!-- CHARACTER CREATION -->
+  <div class="screen" id="scr-create">
+    <div class="pad">
+      <h1>Torchfall</h1>
+      <div class="sub">FORGE THE ONE WHO CARRIES THE LIGHT</div>
+      <div id="cc-arch"></div>
+      <div class="ccstage">
+        <canvas id="cc-face"></canvas>
+        <div><div id="cc-name"></div>
+          <div class="sub" style="margin:4px 0 0">TAP REROLL UNTIL THEY LOOK RIGHT</div></div>
+      </div>
+      <div class="crow">
+        <button id="cc-reroll">⚄ REROLL BODY</button>
+        <button id="cc-colors">◩ COLORS</button>
+      </div>
+      <div id="cc-desc"></div>
+      <div class="crow"><button id="cc-start" class="primary">⚑ ENTER TOWN</button></div>
+    </div>
+  </div>
+
+  <!-- TOWN -->
+  <div class="screen" id="scr-town">
+    <div class="pad">
+      <h1>Emberrest</h1>
+      <div class="sub">THE LAST TOWN ABOVE THE DARK</div>
+      <div class="twhead">
+        <canvas id="tw-face"></canvas>
+        <div style="flex:1">
+          <div id="tw-name"></div>
+          <div id="tw-silver"></div>
+          <div id="tw-best"></div>
+        </div>
+      </div>
+      <div class="twbtns">
+        <button id="tw-tavern">🍺 TAVERN</button>
+        <button id="tw-char">☰ CHARACTER</button>
+        <button id="tw-inv">🎒 INVENTORY</button>
+        <button id="tw-wipe" class="ghost">☠ NEW GAME</button>
+        <button id="tw-delve" class="primary wide">⬇ DESCEND INTO THE DELVE</button>
+      </div>
+      <h2>Company</h2>
+      <div id="tw-team"></div>
+    </div>
+  </div>
+
+  <!-- DELVE -->
+  <div class="screen" id="scr-delve">
+    <div class="hudtop">
+      <span class="t" id="hud-depth">FLOOR 1</span>
+      <button id="hud-up">▲</button>
+      <button id="hud-down">▼</button>
+      <span class="s" id="hud-silver">0s</span>
+      <button id="hud-pause">❚❚</button>
+      <button id="hud-speed">×1</button>
+      <button id="hud-retreat">⚑ TOWN</button>
+    </div>
+    <div id="cvwrap">
+      <canvas id="cv" width="330" height="336"></canvas>
+      <div id="hud-party"></div>
+    </div>
+    <div class="hudbot">
+      <div id="hud-skills"></div>
+      <div class="hudside">
+        <button id="hud-mode">⚔ AUTO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHEETS -->
+  <div id="veil"></div>
+  <div class="osheet" id="sh-char">
+    <div class="head"><canvas id="ch-face"></canvas>
+      <div><h2 id="ch-name"></h2><div class="sub" id="ch-sub" style="margin:2px 0 0"></div></div>
+      <button class="x">✕</button></div>
+    <div class="body">
+      <div class="xpbar"><div id="ch-xp"></div></div>
+      <div id="ch-xpt"></div>
+      <h2 style="margin-top:10px">Stats</h2>
+      <div id="ch-stats"></div>
+      <h2 style="margin-top:12px">Skills</h2>
+      <div id="ch-skills"></div>
+      <h2 style="margin-top:12px">Equipment</h2>
+      <div id="ch-equip"></div>
+      <button id="ch-release" class="ghost" style="margin-top:14px;width:100%">RELEASE FROM SERVICE</button>
+    </div>
+  </div>
+  <div class="osheet" id="sh-inv">
+    <div class="head"><h2 id="inv-title">INVENTORY</h2>
+      <button id="inv-back" class="ghost" style="min-height:36px;display:none">← ALL</button>
+      <button class="x">✕</button></div>
+    <div class="body"><div id="inv-list"></div></div>
+  </div>
+  <div class="osheet" id="sh-tavern">
+    <div class="head"><h2>The Guttering Wick</h2><button class="x">✕</button></div>
+    <div class="body">
+      <div class="sub" id="tav-cap"></div>
+      <div id="tav-list"></div>
+      <div class="hint">DISMISSED WANDERERS LEAVE TOWN — SOMEONE NEW TAKES THE STOOL.</div>
+    </div>
+  </div>
+  <div class="osheet" id="sh-death">
+    <div class="head"><h2>The dark keeps what it takes</h2></div>
+    <div class="body">
+      <div class="sub">LOST TO THE DELVE</div>
+      <div id="dd-lost"></div>
+      <div class="sub">WHAT REMAINS</div>
+      <div id="dd-kept"></div>
+      <button id="dd-town" class="primary" style="width:100%">WAKE IN EMBERREST</button>
+    </div>
+  </div>
+  <div id="toast"></div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
