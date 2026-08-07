@@ -200,6 +200,15 @@ function openCharSheet(c){
   sheetChar=c; sheetTab='stats'; pend={patt:0,matt:0,pdef:0,mdef:0,dodge:0,crit:0};
   paintCharSheet(); openSheet('sh-char');
 }
+/* swipe / arrows to flip through the party on the character sheet */
+function sheetParty(){ return [S.player,...S.team].filter(Boolean); }
+function navChar(dir){
+  const party=sheetParty(); if(party.length<2)return;
+  let i=party.indexOf(sheetChar); if(i<0)i=0;
+  const keep=sheetTab;
+  openCharSheet(party[(i+dir+party.length)%party.length]);
+  sheetTab=keep; paintCharSheet();
+}
 function paintDollSlots(c){
   for(const slot of SLOTS){
     const cell=document.querySelector('#sh-char .slot-'+slot); if(!cell)continue;
@@ -324,9 +333,24 @@ function paintCharSheet(){
   const pb=$('ch-tab-pts'); pb.textContent=availStat; pb.classList.toggle('on',availStat>0);
   const sb=$('ch-tab-sp'); sb.textContent=availSk; sb.classList.toggle('on',availSk>0);
   $('ch-release').style.display=c.isPlayer?'none':'block';
+  const multi=sheetParty().length>1 && sheetParty().includes(c);
+  $('ch-prev').style.display=multi?'':'none';
+  $('ch-next').style.display=multi?'':'none';
 }
 /* one-time bindings */
 document.querySelectorAll('#sh-char .tab').forEach(t=>t.onclick=()=>{sheetTab=t.dataset.tab;paintCharSheet();});
+$('ch-prev').onclick=()=>navChar(-1);
+$('ch-next').onclick=()=>navChar(1);
+(function(){                                        // horizontal swipe flips characters
+  const sheet=$('sh-char'); let sx=0,sy=0,down=false;
+  sheet.addEventListener('pointerdown',e=>{sx=e.clientX;sy=e.clientY;down=true;});
+  sheet.addEventListener('pointerup',e=>{
+    if(!down)return;down=false;
+    const dx=e.clientX-sx, dy=e.clientY-sy;
+    if(Math.abs(dx)>55 && Math.abs(dx)>Math.abs(dy)*1.4) navChar(dx<0?1:-1);
+  });
+  sheet.addEventListener('pointercancel',()=>{down=false;});
+})();
 $('ch-reset').onclick=()=>{STAT_KEYS.forEach(k=>pend[k]=0);paintCharSheet();};
 $('ch-confirm').onclick=()=>{
   const c=sheetChar; if(!c)return; const n=pendSum(); if(!n)return;
@@ -436,22 +460,25 @@ export function buildHud(){
   for(const u of D.units.filter(u=>u.side==='party')){
     const c=u.char;
     const d=el('div','pf'+(c.isPlayer?' lead':''));d.dataset.id=c.id;
+    const head=el('div','pfhead');
+    const pcol=el('div','pcol');
     const port=el('div','port');
     const cnv=el('canvas');port.appendChild(cnv);
     port.appendChild(el('span','lv','L'+c.lv));
-    d.appendChild(port);
+    pcol.appendChild(port);
+    pcol.appendChild(el('div','role',ROLE[c.arch]||'—'));   // class under the picture
+    head.appendChild(pcol);
+    head.appendChild(el('div','pname',c.name.toUpperCase()));
+    d.appendChild(head);
     if(c.isPlayer)d.appendChild(el('span','flag','⚑'));
-    const info=el('div','pinfo');
-    info.appendChild(el('div','pname',c.name.toUpperCase()+' <span class="role">· '+(ROLE[c.arch]||'—')+'</span>'));
     const hp=el('div','hpwrap');hp.appendChild(el('div','hpfill'));hp.appendChild(el('div','hpnum'));
-    info.appendChild(hp);
-    info.appendChild(el('div','grid'));
+    d.appendChild(hp);                                       // hp + stats + xp span the full card
+    d.appendChild(el('div','grid'));
     const xp=el('div','xprow');
     xp.appendChild(el('span','xplv',''));
     const xb=el('div','xpbar2');xb.appendChild(el('div','xpfill'));
     xp.appendChild(xb);
-    info.appendChild(xp);
-    d.appendChild(info);
+    d.appendChild(xp);
     d.onclick=()=>{D.paused=true;openCharSheet(c);};
     pf.appendChild(d);
     portrait(c,cnv,1);cnv.style.width='100%';cnv.style.height='auto';

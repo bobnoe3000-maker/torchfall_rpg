@@ -54,34 +54,36 @@ canvas{image-rendering:pixelated}
 /* company bar — party portraits + key stats along the bottom */
 #hud-party{display:flex;gap:6px;padding:7px 8px 0}
 .pf{flex:1;min-width:0;background:rgba(11,9,17,.94);border:1px solid var(--edge);
- padding:7px;display:flex;gap:8px;cursor:pointer;position:relative}
+ padding:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer;position:relative;overflow:hidden}
 .pf.lead{border-color:#6a5327;box-shadow:inset 0 0 0 1px rgba(232,160,60,.18)}
 .pf.dead{opacity:.4;filter:grayscale(1)}
-.pf .port{width:42px;flex:none;align-self:flex-start;background:#0a0710;
- border:1px solid #241d2e;position:relative;overflow:hidden;line-height:0}
+.pf .pfhead{display:flex;gap:8px;align-items:center}
+.pf .pcol{flex:none;width:40px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.pf .port{width:40px;background:#0a0710;border:1px solid #241d2e;position:relative;overflow:hidden;line-height:0}
 .pf .port canvas{width:100%;height:auto;image-rendering:pixelated;display:block}
-.pf .lv{position:absolute;left:-1px;bottom:-1px;font-family:var(--px);font-size:7.5px;
+.pf .lv{position:absolute;left:-1px;bottom:-1px;font-family:var(--px);font-size:7px;
  color:#0d0a13;background:var(--torch);padding:1px 3px;letter-spacing:.02em;line-height:1}
-.pf .flag{position:absolute;right:-3px;top:-7px;font-size:13px;z-index:2;
- filter:drop-shadow(0 1px 1px #000)}
-.pf .pinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
-.pf .pname{font-family:var(--px);font-size:9px;letter-spacing:.03em;color:var(--bone);
+.pf .role{font-family:var(--px);font-size:8.5px;color:var(--ash);letter-spacing:.06em}
+.pf .flag{position:absolute;right:-3px;top:-7px;font-size:13px;z-index:2;filter:drop-shadow(0 1px 1px #000)}
+.pf .pname{flex:1;min-width:0;font-family:var(--px);font-size:11px;color:var(--bone);letter-spacing:.03em;
  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pf .pname .role{color:var(--ash)}
-.pf .hpwrap{position:relative;height:12px;background:#241d2e;border:1px solid #000}
+.pf .hpwrap{position:relative;height:14px;background:#241d2e;border:1px solid #000}
 .pf .hpfill{position:absolute;left:0;top:0;bottom:0;background:#5FBE6A;transition:width .12s linear}
 .pf .hpnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;
- padding-right:3px;font-family:var(--px);font-size:8px;color:#eae0cf;
+ padding-right:4px;font-family:var(--px);font-size:9px;color:#eae0cf;
  text-shadow:0 1px 0 #000,0 0 2px #000;font-variant-numeric:tabular-nums}
-.pf .grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 7px;margin-top:2px}
-.pf .st{display:flex;align-items:baseline;gap:3px;font-family:var(--px);font-size:8px;letter-spacing:.02em}
-.pf .st .k{color:var(--ash)}
-.pf .st .v{color:var(--bone);font-variant-numeric:tabular-nums;margin-left:auto}
+.pf .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 9px}
+.pf .st{display:flex;align-items:baseline;gap:4px;font-family:var(--px);font-size:9.5px;letter-spacing:.02em;min-width:0;overflow:hidden}
+.pf .st .k{color:var(--ash);flex:none}
+.pf .st .v{color:var(--bone);font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
 .pf .st .v.mag{color:var(--rune)}.pf .st .v.phy{color:#F0C48A}
-.pf .xprow{display:flex;align-items:center;gap:6px;margin-top:4px}
-.pf .xplv{font-family:var(--px);font-size:7.5px;color:var(--torch);letter-spacing:.04em;flex:none}
-.pf .xpbar2{position:relative;flex:1;height:4px;background:#241d2e;border:1px solid #000}
+.pf .xprow{display:flex;align-items:center;gap:6px}
+.pf .xplv{font-family:var(--px);font-size:8.5px;color:var(--torch);letter-spacing:.04em;flex:none}
+.pf .xpbar2{position:relative;flex:1;height:5px;background:#241d2e;border:1px solid #000}
 .pf .xpfill{position:absolute;left:0;top:0;bottom:0;background:var(--torch);width:0;transition:width .2s linear}
+/* character-sheet nav arrows */
+.chnav{background:#221B2B;border:1px solid var(--edge);color:var(--bone);font-size:20px;line-height:1;
+ min-height:0;width:38px;height:38px;padding:0;display:flex;align-items:center;justify-content:center}
 /* delve map overlay */
 #map-wrap{background:#07060d;border:1px solid var(--edge);padding:8px;display:flex;justify-content:center}
 #map-cv{width:100%;height:auto;image-rendering:pixelated}
