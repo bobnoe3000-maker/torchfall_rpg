@@ -84,18 +84,39 @@
   <!-- SHEETS -->
   <div id="veil"></div>
   <div class="osheet" id="sh-char">
-    <div class="head"><canvas id="ch-face"></canvas>
+    <div class="head">
       <div><h2 id="ch-name"></h2><div class="sub" id="ch-sub" style="margin:2px 0 0"></div></div>
       <button class="x">✕</button></div>
     <div class="body">
+      <div class="doll">
+        <div class="slotcell slot-armor" style="grid-column:2;grid-row:1"></div>
+        <div class="slotcell slot-weapon" style="grid-column:1;grid-row:2"></div>
+        <div class="center">
+          <canvas id="ch-face"></canvas><div class="glow"></div>
+          <div class="dollhint">◆ TAP A SLOT TO SWAP GEAR ◆</div>
+        </div>
+        <div class="slotcell slot-offhand" style="grid-column:3;grid-row:2"></div>
+        <div class="slotcell slot-boots" style="grid-column:2;grid-row:3"></div>
+      </div>
+      <div class="xpline"><span id="ch-xpt"></span><span id="ch-best"></span></div>
       <div class="xpbar"><div id="ch-xp"></div></div>
-      <div id="ch-xpt"></div>
-      <h2 style="margin-top:10px">Stats</h2>
-      <div id="ch-stats"></div>
-      <h2 style="margin-top:12px">Skills</h2>
-      <div id="ch-skills"></div>
-      <h2 style="margin-top:12px">Equipment</h2>
-      <div id="ch-equip"></div>
+      <div class="tabs">
+        <div class="tab on" data-tab="stats">STATS<span class="badge" id="ch-tab-pts"></span></div>
+        <div class="tab" data-tab="skills">SKILLS<span class="badge" id="ch-tab-sp"></span></div>
+      </div>
+      <div class="tabpane" id="ch-pane-stats">
+        <div class="ptbar"><span class="lab">POINTS TO ASSIGN</span><span class="n" id="ch-pts"></span>
+          <span class="hint">＋ / − ADJUST ONLY UNSPENT POINTS — NOTHING LOCKS IN UNTIL YOU CONFIRM</span></div>
+        <div id="ch-stats"></div>
+        <div class="confirmrow">
+          <button class="reset" id="ch-reset">RESET</button>
+          <button class="confirm" id="ch-confirm" disabled>CONFIRM</button>
+        </div>
+      </div>
+      <div class="tabpane hide" id="ch-pane-skills">
+        <div class="skhead"><span class="lab" id="ch-sp-lab">SKILL POINTS</span><span class="n" id="ch-sp"></span></div>
+        <div id="ch-skills"></div>
+      </div>
       <button id="ch-release" class="ghost" style="margin-top:14px;width:100%">RELEASE FROM SERVICE</button>
     </div>
   </div>
