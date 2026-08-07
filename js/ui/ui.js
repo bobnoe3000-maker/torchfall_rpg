@@ -3,6 +3,7 @@ import {S,makeCharacter,randRecipe,refresh,partyUnits,persist,restore,grantXp} f
 import {D,startDelve} from '../game/combat.js';
 import {ARCHETYPES,ARCH_KEYS,STAT_WEIGHTS} from '../config/skills.js';
 import {BAL} from '../config/balance.js';
+import {GEAR_BASES} from '../config/gear.js';
 import {rollPal,WEAPONS,OFFHANDS,TORSOS,LEGS} from '../art/parts.js';
 import {getFrame} from '../art/assemble.js';
 import {itemName,sameFamily,tryMerge} from '../game/loot.js';
@@ -130,6 +131,7 @@ export function buildTown(){
 $('tw-tavern').onclick=()=>openTavern();
 $('tw-char').onclick=()=>openCharSheet(S.player);
 $('tw-inv').onclick=()=>openInv(null);
+$('tw-forge').onclick=()=>openForge();
 $('tw-delve').onclick=()=>{beginDelve(1);};
 $('tw-wipe').onclick=()=>{
   if(!confirm('Erase this save entirely?'))return;
@@ -481,6 +483,86 @@ function paintInv(){
   $('inv-back').style.display=(invFilter||mergeSel)?'inline-block':'none';
   $('inv-back').onclick=()=>{invFilter=null;mergeSel=null;paintInv();};
 }
+/* ═══ FORGE ═══ */
+let fTarget=null, fMats=[null,null], fBusy=false;
+const forgeChance=t=>t?Math.max(25,95-(t.plus||0)*15):0;         // safer curve, floors at 25%
+const baseCount=bi=>S.inv.reduce((n,i)=>n+(i.base===bi?1:0),0);
+function openForge(){fTarget=null;fMats=[null,null];fBusy=false;$('f-result').className='fresult';paintForge();openSheet('sh-forge');}
+function fillForgeSlot(slotEl,nmEl,it,ph){
+  slotEl.className=slotEl.className.replace(/\s*(filled|magic|rare)/g,'');
+  slotEl.innerHTML='';
+  if(it){
+    slotEl.classList.add('filled');const r=itemRarity(it);if(r)slotEl.classList.add(r);
+    slotEl.appendChild(el('span','tier','T'+it.tier));
+    if(it.plus)slotEl.appendChild(el('span','plus','+'+it.plus));
+    slotEl.appendChild(itemIconEl(it,slotEl.classList.contains('target')?54:42));
+    nmEl.textContent=itemName(it);
+  } else {slotEl.appendChild(el('span','fph',ph));nmEl.textContent='';}
+}
+function paintForge(){
+  fillForgeSlot($('f-target'),$('fnm-target'),fTarget,'TAP AN ITEM<br>TO UPGRADE');
+  fillForgeSlot($('f-m0'),$('fnm-m0'),fMats[0],'MATERIAL');
+  fillForgeSlot($('f-m1'),$('fnm-m1'),fMats[1],'MATERIAL');
+  $('f-target').onclick=()=>{if(!fBusy&&fTarget){fTarget=null;fMats=[null,null];paintForge();}};
+  [0,1].forEach(i=>{$('f-m'+i).onclick=()=>{if(!fBusy&&fMats[i]){fMats[i]=null;paintForge();}};});
+  const c=forgeChance(fTarget), col=c>=80?'#5FBE6A':c>=55?'#E8A03C':'#C4552B';
+  $('f-chance').textContent=fTarget?c+'%':'—';$('f-chance').style.color=fTarget?col:'';
+  const bar=$('f-bar');bar.style.width=(fTarget?c:0)+'%';bar.style.background=col;
+  $('f-prev').innerHTML=fTarget?('<b>'+itemName(fTarget).replace(/\s*\(\+\d+\)$/,'')+'</b> (+'+(fTarget.plus||0)+') <span class="up">→ (+'+((fTarget.plus||0)+1)+')</span>'):'SEAT A TARGET TO SEE THE UPGRADE';
+  $('f-forge').disabled=fBusy||!(fTarget&&fMats[0]&&fMats[1]);
+  const host=$('f-inv');host.innerHTML='';
+  const used=it=>it===fTarget||fMats.includes(it);
+  let list;
+  if(fTarget){list=S.inv.filter(i=>i.base===fTarget.base&&!used(i));$('f-filter').textContent='SHOWING · '+GEAR_BASES[fTarget.base].n.toUpperCase()+' MATERIALS';}
+  else{list=S.inv.filter(i=>baseCount(i.base)>=3);$('f-filter').textContent='TAP AN UPGRADEABLE ITEM';}
+  if(!list.length)host.appendChild(el('div','hint',fTarget?'NO MORE MATCHING MATERIALS IN YOUR PACK':'NEED 3+ OF THE SAME ITEM TO FORGE — DELVE FOR MORE'));
+  for(const it of list){
+    const d=el('div','item');
+    d.appendChild(itemIconEl(it,30));
+    d.appendChild(el('div','in','<b>'+itemName(it)+'</b><i>T'+it.tier+' '+it.slot.toUpperCase()+' · '+statLine(it)+'</i>'));
+    d.onclick=()=>forgePick(it);
+    host.appendChild(d);
+  }
+}
+function forgePick(it){
+  if(fBusy)return;
+  if(!fTarget)fTarget=it;
+  else if(it.base===fTarget.base&&it!==fTarget&&!fMats.includes(it)){const i=fMats.indexOf(null);if(i>=0)fMats[i]=it;}
+  paintForge();
+}
+function doForge(){
+  if(fBusy||!(fTarget&&fMats[0]&&fMats[1]))return;
+  fBusy=true;$('f-forge').disabled=true;$('f-result').className='fresult';
+  const bench=$('fbench');bench.classList.add('forging');
+  const em=$('f-embers');em.innerHTML='';
+  for(let i=0;i<20;i++){const s=el('span','ember');s.style.left=(38+sysRng()*24)+'%';
+    s.style.setProperty('--dx',(sysRng()*40-20)+'px');s.style.background=sysRng()<.5?'#E8A03C':'#FFE6A0';
+    s.style.animation='emberfly '+(700+sysRng()*450)+'ms ease-out '+(sysRng()*160)+'ms forwards';em.appendChild(s);}
+  $('f-flash').style.animation='flashpop 620ms ease-out 240ms';
+  setTimeout(()=>{
+    bench.classList.remove('forging');$('f-flash').style.animation='';
+    const win=sysRng()*100<forgeChance(fTarget);
+    S.inv=S.inv.filter(x=>x!==fMats[0]&&x!==fMats[1]);   // materials are always consumed
+    const res=$('f-result');
+    if(win){
+      fTarget.plus=(fTarget.plus||0)+1;
+      res.className='fresult show win';
+      $('f-verdict').textContent='Forged!';
+      $('f-ritem').innerHTML='<b>'+itemName(fTarget)+'</b>';
+      $('f-rsub').textContent='THE ANVIL SINGS · MATERIALS CONSUMED';
+      toast('FORGED: '+itemName(fTarget).toUpperCase());
+    } else {
+      res.className='fresult show lose';
+      $('f-verdict').textContent='The temper cracked';
+      $('f-ritem').innerHTML='<b>'+itemName(fTarget)+'</b> — UNCHANGED';
+      $('f-rsub').textContent='BOTH MATERIALS LOST TO THE FLAME';
+      toast('THE FORGE CLAIMED YOUR MATERIALS');
+    }
+    fMats=[null,null];fBusy=false;persist();paintForge();
+    clearTimeout(res._h);res._h=setTimeout(()=>{res.className='fresult';},3000);
+  },1120);
+}
+$('f-forge').onclick=()=>doForge();
 /* ═══ DELVE HUD ═══ */
 const ROLE={fighter:'FTR',rogue:'ROG',mage:'MAG',cleric:'CLR',healer:'HLR'};
 const stCell=(k,v,cls)=>'<div class="st"><span class="k">'+k+'</span><span class="v'+(cls?' '+cls:'')+'">'+v+'</span></div>';

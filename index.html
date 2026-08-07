@@ -50,6 +50,7 @@
         <button id="tw-tavern">🍺 TAVERN</button>
         <button id="tw-char">☰ CHARACTER</button>
         <button id="tw-inv">🎒 INVENTORY</button>
+        <button id="tw-forge">⚒ FORGE</button>
         <button id="tw-wipe" class="ghost">☠ NEW GAME</button>
         <button id="tw-delve" class="primary wide">⬇ DESCEND INTO THE DELVE</button>
       </div>
@@ -129,6 +130,36 @@
       <button id="inv-back" class="ghost" style="min-height:36px;display:none">← ALL</button>
       <button class="x">✕</button></div>
     <div class="body"><div id="inv-list"></div></div>
+  </div>
+  <div class="osheet full" id="sh-forge">
+    <div class="head"><h2>The <span class="fem">Forge</span></h2><button class="x">✕</button></div>
+    <div class="body">
+      <div class="fbench" id="fbench">
+        <div class="flbl">⚒ ANVIL</div>
+        <div class="fslots">
+          <div class="fslotwrap"><div class="fslot target" id="f-target"></div><div class="fsnm" id="fnm-target"></div></div>
+          <span class="fop">＋</span>
+          <div class="fslotwrap"><div class="fslot mat" id="f-m0"></div><div class="fsnm" id="fnm-m0"></div></div>
+          <span class="fop">＋</span>
+          <div class="fslotwrap"><div class="fslot mat" id="f-m1"></div><div class="fsnm" id="fnm-m1"></div></div>
+        </div>
+        <div class="fchance">
+          <div class="frow"><span class="k">SUCCESS CHANCE</span><span class="v" id="f-chance">—</span></div>
+          <div class="fmeter"><div id="f-bar"></div></div>
+          <div class="fprev" id="f-prev"></div>
+        </div>
+        <button class="fbtn" id="f-forge" disabled>⚒ FORGE</button>
+        <div class="fembers" id="f-embers"></div>
+        <div class="fflash" id="f-flash"></div>
+      </div>
+      <div class="fresult" id="f-result">
+        <div class="fverdict" id="f-verdict"></div>
+        <div class="fritem" id="f-ritem"></div>
+        <div class="frsub" id="f-rsub"></div>
+      </div>
+      <div class="finvhead"><span class="k">YOUR PACK</span><span class="f" id="f-filter"></span></div>
+      <div id="f-inv"></div>
+    </div>
   </div>
   <div class="osheet" id="sh-tavern">
     <div class="head"><h2>The Guttering Wick</h2><button class="x">✕</button></div>

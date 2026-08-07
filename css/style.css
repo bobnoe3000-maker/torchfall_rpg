@@ -93,6 +93,53 @@ canvas{image-rendering:pixelated}
 .maplegend .dot{width:7px;height:7px;display:inline-block}
 .maplegend .you{background:#E8C46A}.maplegend .ally{background:#5FE0F0}
 .maplegend .foe{background:#C4552B}.maplegend .dim{background:#211a2b}
+/* ══ the forge ══ */
+#sh-forge .fem{color:var(--ember)}
+#sh-forge .body{display:flex;flex-direction:column;gap:14px}
+.fbench{background:#0e0b16;border:1px solid var(--edge2);padding:14px 12px;position:relative;overflow:hidden}
+.fbench .flbl{font-family:var(--px);font-size:9px;letter-spacing:.14em;color:var(--torch);text-transform:uppercase;text-align:center;margin-bottom:13px}
+.fslots{display:flex;align-items:flex-start;justify-content:center;gap:6px}
+.fslotwrap{display:flex;flex-direction:column;align-items:center}
+.fop{font-family:var(--px);font-size:15px;color:var(--ash);align-self:center;margin-top:22px}
+.fslot{position:relative;background:#080610;border:1.5px dashed #3a3048;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.fslot.target{width:88px;height:88px}.fslot.mat{width:70px;height:70px}
+.fslot.filled{border-style:solid}
+.fslot.magic{border-color:var(--magic);box-shadow:inset 0 0 12px rgba(79,134,214,.25)}
+.fslot.rare{border-color:var(--torch);box-shadow:inset 0 0 12px rgba(232,160,60,.25)}
+.fslot .fph{font-family:var(--px);font-size:6.5px;color:#5a5370;letter-spacing:.06em;text-align:center;padding:0 4px;line-height:1.7}
+.fslot .tier{position:absolute;left:3px;top:2px;font-family:var(--px);font-size:6.5px;color:#0d0a13;background:var(--ash);padding:1px 3px;z-index:1}
+.fslot.magic .tier{background:var(--magic);color:#eaf1ff}.fslot.rare .tier{background:var(--torch)}
+.fslot .plus{position:absolute;right:3px;top:2px;font-family:var(--px);font-size:7px;color:var(--torch);text-shadow:0 1px 0 #000;z-index:1}
+.fsnm{font-family:var(--px);font-size:6.5px;color:var(--ash);text-align:center;margin-top:5px;letter-spacing:.03em;max-width:88px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fchance{margin-top:15px}
+.fchance .frow{display:flex;align-items:baseline;margin-bottom:5px}
+.fchance .frow .k{font-family:var(--px);font-size:8px;letter-spacing:.1em;color:var(--ash)}
+.fchance .frow .v{margin-left:auto;font-family:var(--px);font-size:16px;font-variant-numeric:tabular-nums}
+.fmeter{height:9px;background:#241d2e;border:1px solid #000;position:relative;overflow:hidden}
+.fmeter>div{position:absolute;inset:0;right:auto;width:0;transition:width .3s,background .3s}
+.fprev{font-family:var(--px);font-size:8px;color:#6b6280;letter-spacing:.04em;margin-top:9px;text-align:center;min-height:11px}
+.fprev b{color:var(--bone)}.fprev .up{color:var(--torch)}
+.fbtn{width:100%;margin-top:13px;font-family:var(--px);font-size:11px;letter-spacing:.08em;min-height:50px;
+ background:linear-gradient(#8a4d18,#5c3410);border:1px solid #a8722f;color:#FFE6BE}
+.fbtn:disabled{background:#1a141f;border-color:var(--edge);color:#5a5370}
+.fembers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.ember{position:absolute;bottom:34%;width:3px;height:3px;border-radius:50%;background:var(--torch);opacity:0}
+.fbench.forging{animation:fshake .12s linear 6}
+@keyframes fshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+.fflash{position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,rgba(255,238,190,.9),rgba(232,160,60,0) 60%);opacity:0;pointer-events:none}
+@keyframes emberfly{0%{opacity:0;transform:translateY(0) scale(1)}15%{opacity:1}100%{opacity:0;transform:translateY(-70px) translateX(var(--dx)) scale(.3)}}
+@keyframes flashpop{0%{opacity:0}40%{opacity:.95}100%{opacity:0}}
+.fresult{border:1px solid var(--edge2);background:#0e0b16;padding:16px 14px;text-align:center;display:none}
+.fresult.show{display:block;animation:frise .4s ease-out}
+@keyframes frise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fresult .fverdict{font-family:var(--ink);font-size:24px;margin-bottom:4px}
+.fresult.win .fverdict{color:var(--torch)}.fresult.lose .fverdict{color:var(--ember)}
+.fresult .fritem{font-family:var(--px);font-size:11px;color:var(--bone);letter-spacing:.03em;margin:8px 0}
+.fresult .frsub{font-family:var(--px);font-size:7px;color:var(--ash);letter-spacing:.05em}
+.finvhead{display:flex;align-items:baseline}
+.finvhead .k{font-family:var(--px);font-size:9px;letter-spacing:.1em;color:var(--torch);text-transform:uppercase}
+.finvhead .f{margin-left:auto;font-family:var(--px);font-size:7px;color:var(--ash);letter-spacing:.04em}
+#f-inv{margin-top:8px}
 .hudbot{display:flex;padding:7px 8px calc(8px + env(safe-area-inset-bottom))}
 #hud-mode{flex:1;min-height:42px;font-size:11px;letter-spacing:.06em}
 /* sheets */
