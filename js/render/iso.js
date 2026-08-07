@@ -150,7 +150,7 @@ export function render(t){
     }
   }
   /* floaters */
-  g.font='7px monospace';g.textAlign='center';
+  g.font='8px monospace';g.textAlign='center';
   for(const f of D.floaters){
     const [sx,sy]=scr(f.x,f.y);
     g.globalAlpha=Math.min(1,f.life/500);
@@ -211,7 +211,7 @@ function drawUnit(u,t){
       g.fillStyle={burn:'#E8834E',poison:'#7CBE4A',slow:'#7FD8F8'}[p.k]||'#fff';
       g.fillRect(sx-bw/2+(u.procsOn.indexOf(p)*4),dy-6,3,2);
     }
-    if(c.boss){g.fillStyle='#E8402A';g.font='7px monospace';g.textAlign='center';g.fillText('☠ BOSS',sx,dy-7);g.textAlign='left';}
+    if(c.boss){g.fillStyle='#E8402A';g.font='8px monospace';g.textAlign='center';g.fillText('☠ BOSS',sx,dy-7);g.textAlign='left';}
     if(c.isPlayer){g.fillStyle='#E8C46A';g.fillRect(sx-1,dy-8,2,2);}
   }
 }

@@ -46,19 +46,17 @@ export function toast(msg){
 }
 on('toast',d=>toast(d.msg));
 
-/* companions learn skills automatically by level (unlock at 1/3/6, +1 rank per 5 levels).
-   the player instead spends skill points by hand — 1 earned per level. */
+/* every character — player and companions alike — earns 1 skill point per level to
+   spend on learning/ranking skills and to order their auto-cast priority. */
 export function ranks(c){
   const un=[1,3,6];
   return [0,1,2].map(i=>c.lv>=un[i]?1+Math.floor((c.lv-un[i])/5):0);
 }
-function autoSkills(c){ if(c&&!c.isPlayer) c.skillRanks=ranks(c); }
 export const SKILL_MAX=5;
 const skillSpent=c=>(c.skillRanks||[]).reduce((a,b)=>a+(b||0),0);
-const skillAvail=c=>c.isPlayer?Math.max(0,c.lv-skillSpent(c)):0;
+const skillAvail=c=>Math.max(0,c.lv-skillSpent(c));
 function portrait(c,cnv,scale){
   refresh(c);
-  autoSkills(c);   // companions learn automatically; the player allocates by hand
   const fr=getFrame(c.recipe,c.pal,'idle',0,1);
   cnv.width=fr.width;cnv.height=fr.height;
   const g=cnv.getContext('2d');g.imageSmoothingEnabled=false;
@@ -138,7 +136,7 @@ $('tw-wipe').onclick=()=>{
   wipeSave();location.reload();
 };
 function beginDelve(depth){
-  [S.player,...S.team].forEach(c=>{refresh(c);c.hp=c.maxhp;autoSkills(c);});
+  [S.player,...S.team].forEach(c=>{refresh(c);c.hp=c.maxhp;});
   startDelve(depth);setZoom(1);
   buildHud();show('scr-delve');
   requestAnimationFrame(()=>fitCanvas());   // size the canvas once the screen is laid out
@@ -273,10 +271,9 @@ function paintStatRows(c){
   $('ch-pts').textContent=avail;
   $('ch-confirm').disabled=pendSum()===0;
 }
-/* keep the loadout valid: companions auto-run all learned; the player keeps their picks */
+/* keep the loadout valid: default to learned skills, then honour the player's picks */
 function ensureLoadout(c){
   const learned=[0,1,2].filter(i=>(c.skillRanks[i]||0)>0);
-  if(!c.isPlayer){c.loadout=learned.slice(0,3);return;}
   if(!Array.isArray(c.loadout))c.loadout=learned.slice(0,3);
   else c.loadout=c.loadout.filter(i=>learned.includes(i));
 }
@@ -286,64 +283,57 @@ function paintLoadout(c){
   const host=$('ch-loadout');host.innerHTML='';
   const lo=c.loadout, learned=[0,1,2].filter(i=>(c.skillRanks[i]||0)>0);
   if(!lo.length)host.appendChild(el('div','hint',
-    c.isPlayer?'NO SKILLS QUEUED — ADD ONE BELOW':'NONE LEARNED YET'));
+    'NO SKILLS QUEUED — ADD ONE BELOW'));
   lo.forEach((si,pos)=>{
     const s=ARCHETYPES[c.arch].skills[si];
     const row=el('div','lorow');
     row.innerHTML='<span class="ord">'+(pos+1)+'</span><span class="g">'+s.g+'</span>'
       +'<span class="nm">'+s.n+' <i>R'+c.skillRanks[si]+'</i></span>';
-    if(c.isPlayer){
-      const ctl=el('div','loctl');
-      const up=el('button',null,'▲');up.disabled=pos===0;up.onclick=()=>swapLoad(c,pos,pos-1);
-      const dn=el('button',null,'▼');dn.disabled=pos===lo.length-1;dn.onclick=()=>swapLoad(c,pos,pos+1);
-      const rm=el('button','ghost','✕');rm.onclick=()=>{c.loadout.splice(pos,1);persist();paintCharSheet();};
-      ctl.appendChild(up);ctl.appendChild(dn);ctl.appendChild(rm);row.appendChild(ctl);
-    }
+    const ctl=el('div','loctl');
+    const up=el('button',null,'▲');up.disabled=pos===0;up.onclick=()=>swapLoad(c,pos,pos-1);
+    const dn=el('button',null,'▼');dn.disabled=pos===lo.length-1;dn.onclick=()=>swapLoad(c,pos,pos+1);
+    const rm=el('button','ghost','✕');rm.onclick=()=>{c.loadout.splice(pos,1);persist();paintCharSheet();};
+    ctl.appendChild(up);ctl.appendChild(dn);ctl.appendChild(rm);row.appendChild(ctl);
     host.appendChild(row);
   });
-  if(c.isPlayer){
-    const addable=learned.filter(i=>!lo.includes(i));
-    if(addable.length&&lo.length<3){
-      const add=el('div','loadd');add.appendChild(el('span','lbl','ADD:'));
-      for(const i of addable){
-        const s=ARCHETYPES[c.arch].skills[i];
-        const chip=el('button','addchip',s.g+' '+s.n+' ＋');
-        chip.onclick=()=>{c.loadout.push(i);persist();paintCharSheet();};
-        add.appendChild(chip);
-      }
-      host.appendChild(add);
+  const addable=learned.filter(i=>!lo.includes(i));
+  if(addable.length&&lo.length<3){
+    const add=el('div','loadd');add.appendChild(el('span','lbl','ADD:'));
+    for(const i of addable){
+      const s=ARCHETYPES[c.arch].skills[i];
+      const chip=el('button','addchip',s.g+' '+s.n+' ＋');
+      chip.onclick=()=>{c.loadout.push(i);persist();paintCharSheet();};
+      add.appendChild(chip);
     }
+    host.appendChild(add);
   }
 }
 function paintSkillRows(c){
   const host=$('ch-skills');host.innerHTML='';
   const avail=skillAvail(c);
-  $('ch-sp').textContent=c.isPlayer?avail:'AUTO';
-  $('ch-sp-lab').textContent=c.isPlayer?'SKILL POINTS':'LEARNS AUTOMATICALLY BY LEVEL';
+  $('ch-sp').textContent=avail;
+  $('ch-sp-lab').textContent='SKILL POINTS';
   ARCHETYPES[c.arch].skills.forEach((s,i)=>{
     const rank=c.skillRanks[i]||0, learn=rank===0;
-    const r=el('div','skl'+(learn&&!c.isPlayer?' locked':''));
+    const r=el('div','skl');
     let pips='';for(let n=0;n<SKILL_MAX;n++)pips+='<i class="'+(n<rank?'on':'')+'"></i>';
-    let act='';
-    if(c.isPlayer){
-      const can=avail>0&&rank<SKILL_MAX;
-      const lbl=rank>=SKILL_MAX?'MAXED':(learn?'LEARN · 1 SP':'RANK UP · 1 SP');
-      act='<div class="skact"><button class="'+(learn?'learn':'')+'" '+(can?'':'disabled')+'>'+lbl+'</button></div>';
-    } else act='<div class="skact"><span class="req">'+(rank?'R'+rank:'—')+'</span></div>';
+    const can=avail>0&&rank<SKILL_MAX;
+    const lbl=rank>=SKILL_MAX?'MAXED':(learn?'LEARN · 1 SP':'RANK UP · 1 SP');
+    const act='<div class="skact"><button class="'+(learn?'learn':'')+'" '+(can?'':'disabled')+'>'+lbl+'</button></div>';
     r.innerHTML='<span class="g">'+s.g+'</span><div class="skmid"><div class="nm">'+s.n
       +(rank?' <span class="rk">R'+rank+'</span>':'')+'</div><div class="ds">'+s.d+'</div>'
       +'<div class="pips">'+pips+'</div></div>'+act;
-    if(c.isPlayer){const b=r.querySelector('button');
-      if(b&&!b.disabled)b.onclick=()=>{c.skillRanks[i]=(c.skillRanks[i]||0)+1;
-        if(learn&&Array.isArray(c.loadout)&&c.loadout.length<3&&!c.loadout.includes(i))c.loadout.push(i);
-        persist();paintCharSheet();emit('hud');
-        toast((learn?'LEARNED ':'RANKED UP ')+s.n.toUpperCase());};}
+    const b=r.querySelector('button');
+    if(b&&!b.disabled)b.onclick=()=>{c.skillRanks[i]=(c.skillRanks[i]||0)+1;
+      if(learn&&Array.isArray(c.loadout)&&c.loadout.length<3&&!c.loadout.includes(i))c.loadout.push(i);
+      persist();paintCharSheet();emit('hud');
+      toast((learn?'LEARNED ':'RANKED UP ')+s.n.toUpperCase());};
     host.appendChild(r);
   });
 }
 function paintCharSheet(){
   const c=sheetChar; if(!c)return;
-  autoSkills(c); refresh(c);
+  refresh(c);
   portrait(c,$('ch-face'),2);
   $('ch-name').textContent=c.name+(c.isPlayer?' (YOU)':'');
   $('ch-sub').textContent=ARCHETYPES[c.arch].n+' · LV '+c.lv+' · '+Math.round(c.hp)+'/'+c.maxhp+' HP';
