@@ -1,7 +1,7 @@
 /* Screens: create → town → delve; overlay sheets; HUD */
 import {S,makeCharacter,randRecipe,refresh,partyUnits,persist,restore,grantXp} from '../game/state.js';
 import {D,startDelve} from '../game/combat.js';
-import {ARCHETYPES,ARCH_KEYS,STAT_WEIGHTS} from '../config/skills.js';
+import {ARCHETYPES,ARCH_KEYS,STAT_WEIGHTS,skillColor} from '../config/skills.js';
 import {BAL} from '../config/balance.js';
 import {GEAR_BASES} from '../config/gear.js';
 import {rollPal,WEAPONS,OFFHANDS,TORSOS,LEGS} from '../art/parts.js';
@@ -562,6 +562,25 @@ export function buildHud(){
   const pf=$('hud-party');pf.innerHTML='';
   for(const u of D.units.filter(u=>u.side==='party')){
     const c=u.char;
+    const col=el('div','cardcol');col.dataset.id=c.id;
+    /* skill chips above the card — the firing-order loadout, padded to 3 so the
+       bar always spans the same width as the card below it */
+    const skbar=el('div','skbar');
+    const learned=[0,1,2].filter(i=>(c.skillRanks&&c.skillRanks[i]||0)>0);
+    const lo=(Array.isArray(c.loadout)?c.loadout.filter(i=>learned.includes(i)):learned).slice(0,3);
+    for(let pos=0;pos<3;pos++){
+      const si=lo[pos];
+      const box=el('div','skbox');
+      if(si!=null){
+        const sk=ARCHETYPES[c.arch].skills[si];
+        box.dataset.si=si;box.dataset.cd=sk.cd;box.style.setProperty('--sc',skillColor(sk));
+        box.appendChild(el('span','g',sk.g));
+        box.appendChild(el('span','cd'));
+        box.appendChild(el('span','rd'));
+      } else box.classList.add('empty');
+      skbar.appendChild(box);
+    }
+    col.appendChild(skbar);
     const d=el('div','pf'+(c.isPlayer?' lead':''));d.dataset.id=c.id;
     const head=el('div','pfhead');
     const pcol=el('div','pcol');
@@ -583,7 +602,8 @@ export function buildHud(){
     xp.appendChild(xb);
     d.appendChild(xp);
     d.onclick=()=>{D.paused=true;openCharSheet(c);};
-    pf.appendChild(d);
+    col.appendChild(d);
+    pf.appendChild(col);
     portrait(c,cnv,1);cnv.style.width='100%';cnv.style.height='auto';
   }
   $('hud-mode').textContent=S.mode==='auto'?'⚔ AUTO':'✋ MANUAL';
@@ -616,8 +636,22 @@ export function syncHud(){
         +stCell('CRT',Math.round(st.crit||0)+'%')
         +stCell('DDG',Math.round(st.dodge||0)+'%');
     }
+    /* skill chip cooldown sweeps + ready glow */
+    for(const box of d.querySelectorAll('.skbox[data-si]')){
+      const si=+box.dataset.si, cd=+box.dataset.cd;
+      const rem=(u.skillCds&&u.skillCds[si])||0;
+      const p=cd>0?Math.max(0,Math.min(1,rem/cd)):0;      // fraction of cooldown left
+      const cdEl=box.querySelector('.cd'); if(cdEl)cdEl.style.setProperty('--a',(p*360)+'deg');
+      box.classList.toggle('ready', u.alive && rem<1);
+    }
   }
 }
+/* flash a hero's chip the instant that skill fires */
+on('skillcast',d=>{
+  const col=[...$('hud-party').children].find(c=>c.dataset.id===d.id); if(!col)return;
+  const box=col.querySelector('.skbox[data-si="'+d.si+'"]'); if(!box)return;
+  box.classList.remove('fire');void box.offsetWidth;box.classList.add('fire');
+});
 on('hud',syncHud);
 on('delve-start',()=>{buildHud();});
 $('hud-mode').onclick=()=>{

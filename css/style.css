@@ -52,8 +52,23 @@ canvas{image-rendering:pixelated}
 #cvwrap{position:relative;flex:1;min-height:0}
 #cv{display:block;width:100%;touch-action:none}
 /* company bar — party portraits + key stats along the bottom */
-#hud-party{display:flex;gap:6px;padding:7px 8px 0}
-.pf{flex:1;min-width:0;background:rgba(11,9,17,.94);border:1px solid var(--edge);
+#hud-party{display:flex;gap:6px;padding:7px 8px 0;align-items:flex-end}
+.cardcol{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+/* skill chips — span the card's width below, but capped so a wide (solo) card
+   spreads three tidy squares instead of three giant ones */
+.skbar{display:flex;gap:4px;justify-content:space-between}
+.skbox{position:relative;flex:1 1 0;min-width:0;max-width:46px;aspect-ratio:1;background:#100c18;border:1px solid var(--edge);
+ display:flex;align-items:center;justify-content:center;overflow:hidden}
+.skbox.empty{background:#0c0a12;border-style:dashed;opacity:.4}
+.skbox .g{font-size:16px;line-height:1;filter:drop-shadow(0 1px 1px #000)}
+.skbox .cd{position:absolute;inset:0;background:conic-gradient(rgba(6,4,10,.82) var(--a,0deg),transparent 0);pointer-events:none}
+.skbox .rd{position:absolute;inset:-1px;border:1px solid transparent;pointer-events:none;border-radius:1px}
+.skbox.ready .rd{border-color:var(--sc,#E8A03C);box-shadow:0 0 7px -1px var(--sc,#E8A03C),inset 0 0 6px -3px var(--sc,#E8A03C)}
+.skbox.ready .g{animation:rdpulse 1.3s ease-in-out infinite}
+@keyframes rdpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.skbox.fire{animation:skfire .45s ease-out}
+@keyframes skfire{0%{box-shadow:0 0 0 0 var(--sc,#E8A03C)}30%{box-shadow:0 0 13px 3px var(--sc,#E8A03C)}100%{box-shadow:0 0 0 0 transparent}}
+.pf{min-width:0;background:rgba(11,9,17,.94);border:1px solid var(--edge);
  padding:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer;position:relative;overflow:hidden}
 .pf.lead{border-color:#6a5327;box-shadow:inset 0 0 0 1px rgba(232,160,60,.18)}
 .pf.dead{opacity:.4;filter:grayscale(1)}

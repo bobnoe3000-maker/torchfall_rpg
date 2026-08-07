@@ -1,5 +1,11 @@
 /* Archetypes: base stats, growth flavor, 3 skills each.
    kind: nuke|aoe|buff|heal|taunt|dot — combat.js implements these verbs. */
+import {PROCS} from './gear.js';
+/* one colour per skill, shared by the HUD cooldown chip and the battlefield VFX */
+export const SKILL_KIND_COL={nuke:'#FFD27A',aoe:'#8FB8E8',buff:'#B08CFF',heal:'#7CE08A',taunt:'#7FD8F8',dot:'#7CBE4A'};
+export function skillColor(sk){
+  return (sk.proc&&PROCS[sk.proc]&&PROCS[sk.proc].col)||SKILL_KIND_COL[sk.kind]||'#E8A03C';
+}
 export const ARCHETYPES={
   fighter:{n:'Fighter', stats:{patt:14,matt:4,pdef:8,mdef:4,dodge:4,crit:6,hp:150},
     weaponBias:['swing'], parts:{torso:[1,0],legs:[1,0],arms:[1,0]},

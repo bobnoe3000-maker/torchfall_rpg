@@ -5,7 +5,7 @@ import {derive,rollDamage,itemProcs} from './stats.js';
 import {genItem,itemName} from './loot.js';
 import {PROCS} from '../config/gear.js';
 import {ENEMY_TYPES,ENEMY_PREFIXES} from '../config/enemies.js';
-import {ARCHETYPES} from '../config/skills.js';
+import {ARCHETYPES,skillColor} from '../config/skills.js';
 import {BAL} from '../config/balance.js';
 import {mulberry32,sysRng,R,RI,pick} from '../core/rng.js';
 import {rollPal,WEAPONS} from '../art/parts.js';
@@ -238,6 +238,17 @@ export function castOrder(c){
   if(!Array.isArray(c.loadout))return learned;
   return c.loadout.filter(i=>learned.includes(i));
 }
+/* battlefield skill VFX — consumed by the iso renderer's fx loop */
+function skillFx(kind,x,y,col,sx,sy){
+  if(kind==='nuke'){
+    if(sx!=null)D.fx.push({t:'streak',x:sx,y:sy,tx:x,ty:y,col,life:200,max:200});
+    D.fx.push({t:'burst',x,y,col,life:430,max:430});
+  } else if(kind==='aoe') D.fx.push({t:'ring',x,y,col,life:600,max:600});
+  else if(kind==='buff')  D.fx.push({t:'aura',x,y,col,life:820,max:820});
+  else if(kind==='heal')  D.fx.push({t:'healfx',x,y,col,life:820,max:820});
+  else if(kind==='taunt') D.fx.push({t:'shock',x,y,col,life:640,max:640});
+  else if(kind==='dot')   D.fx.push({t:'burst',x,y,col,life:380,max:380});
+}
 export function castSkill(body,si,manual){
   const arch=ARCHETYPES[body.char.arch];if(!arch)return false;
   const sk=arch.skills[si];
@@ -245,39 +256,42 @@ export function castSkill(body,si,manual){
   if((body.char.skillRanks[si]||0)<1)return false;
   const rank=body.char.skillRanks[si];
   const powMul=1+(rank-1)*.15;
+  const col=skillColor(sk);
   const allies=D.units.filter(u=>u.side==='party'&&u.alive);
   const foes=D.units.filter(u=>u.side==='foe'&&u.alive);
   let ok=false;
   if(sk.kind==='nuke'){
     const t=nearest(body,'foe',6);
-    if(t){hit(body,t,sk.pow*powMul,sk.phys!==false,sk.proc?[sk.proc]:[]);spark(t,'#FFE6A0');ok=true;}
+    if(t){hit(body,t,sk.pow*powMul,sk.phys!==false,sk.proc?[sk.proc]:[]);
+      skillFx('nuke',t.x,t.y,col,body.x,body.y-.5);ok=true;}
   } else if(sk.kind==='aoe'){
     let any=false;
     for(const f of foes)if(Math.hypot(f.x-body.x,f.y-body.y)<=sk.rad+1){
-      hit(body,f,sk.pow*powMul,sk.phys!==false,sk.proc?[sk.proc]:[]);spark(f,'#FFB27A');any=true;}
-    ok=any;
+      hit(body,f,sk.pow*powMul,sk.phys!==false,sk.proc?[sk.proc]:[]);any=true;}
+    skillFx('aoe',body.x,body.y,col);ok=any;
   } else if(sk.kind==='buff'){
     for(const a of allies)a.char.buffs.push({stat:sk.stat,amt:sk.amt*(sk.flat?rank:powMul),flat:sk.flat,left:sk.dur});
-    allies.forEach(a=>{refresh(a.char);spark(a,'#7FD8F8');});
-    ok=true;
+    allies.forEach(a=>refresh(a.char));
+    skillFx('buff',body.x,body.y,col);ok=true;
   } else if(sk.kind==='heal'){
     const pool=sk.all?allies:[allies.filter(a=>a.hp<a.char.stats.hp)
       .sort((a,b)=>a.hp/a.char.stats.hp-b.hp/b.char.stats.hp)[0]].filter(Boolean);
     for(const a of pool){
       const amt=Math.round(a.char.stats.hp*sk.amt*powMul);
       a.hp=Math.min(a.char.stats.hp,a.hp+amt);
-      float(a,'+'+amt,'#7FD8A4');spark(a,'#7FD8A4');
+      float(a,'+'+amt,'#7FD8A4');skillFx('heal',a.x,a.y,col);
     }
     ok=pool.length>0;
   } else if(sk.kind==='taunt'){
     for(const f of foes)if(Math.hypot(f.x-body.x,f.y-body.y)<8)f.forced=body;
     body.char.buffs.push({stat:'pdef',amt:sk.defAmt,left:sk.dur});refresh(body.char);
-    setTimeout(()=>{},0);ok=true;
+    skillFx('taunt',body.x,body.y,col);ok=true;
   } else if(sk.kind==='dot'){
     const t=nearest(body,'foe',6);
-    if(t){t.procsOn.push({k:'poison',left:sk.dur,tick:800});float(t,'ENVENOMED','#7CBE4A');ok=true;}
+    if(t){t.procsOn.push({k:'poison',left:sk.dur,tick:800});float(t,'ENVENOMED','#7CBE4A');
+      skillFx('dot',t.x,t.y,col);ok=true;}
   }
-  if(ok){body.skillCds[si]=sk.cd;if(manual)emit('hud');}
+  if(ok){body.skillCds[si]=sk.cd;emit('skillcast',{id:body.char.id,si});if(manual)emit('hud');}
   return ok;
 }
 function spark(u,col){
