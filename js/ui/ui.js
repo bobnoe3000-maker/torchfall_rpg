@@ -7,7 +7,7 @@ import {BAL} from '../config/balance.js';
 import {GEAR_BASES} from '../config/gear.js';
 import {rollPal,WEAPONS,OFFHANDS,TORSOS,LEGS} from '../art/parts.js';
 import {getFrame} from '../art/assemble.js';
-import {itemName,sameFamily,tryMerge} from '../game/loot.js';
+import {itemName} from '../game/loot.js';
 import {scaledStats} from '../game/stats.js';
 import {sysRng,RI,pick} from '../core/rng.js';
 import {on,emit} from '../core/bus.js';
@@ -41,6 +41,17 @@ function itemIconEl(it,box){
     cv.style.imageRendering='pixelated';wrap.appendChild(cv);
   } else wrap.textContent='▪';
   return wrap;
+}
+/* runic gem icon — a small glowing cyan crystal, shown in the forge + purse */
+const GEM_G=['..w..','.wXw.','wXCXw','.wXw.','..C..'];
+const GEM_PAL={w:'#2E7E96',X:'#5FE0F0',C:'#CFF6FC'};
+function gemIconEl(box){
+  box=box||30;
+  const wrap=el('div','iconbox');wrap.style.width=wrap.style.height=box+'px';
+  const cv=bakeGrid(GEM_G,GEM_PAL);
+  const k=Math.max(1,Math.floor((box-4)/Math.max(cv.width,cv.height)));
+  cv.style.width=(cv.width*k)+'px';cv.style.height=(cv.height*k)+'px';cv.style.imageRendering='pixelated';
+  wrap.appendChild(cv);return wrap;
 }
 export function toast(msg){
   const t=$('toast');t.textContent=msg;t.classList.add('on');
@@ -174,7 +185,8 @@ function pickSlot(i){
 /* ═══ TOWN / HOME (Emberrest) ═══ */
 export function buildTown(){
   $('tw-silver').textContent='◈ '+S.silver;
-  $('tw-best').textContent=S.bestDepth?('DEEPEST B'+S.bestDepth):'DEEPEST —';
+  $('tw-best').textContent='✦ '+(S.gems||0)+' GEM'+((S.gems||0)===1?'':'S');
+  $('tw-best').className='coin gem';
   const room=BAL.teamCap-S.team.length;
   $('tw-tav-tag').textContent=room>0?(room+' OPEN'):'';
   $('tw-delve-sub').textContent=(S.bestDepth?('DEEPEST FLOOR '+S.bestDepth):'THE STAIR AWAITS')+' · A BOSS EVERY 3RD';
@@ -450,9 +462,9 @@ $('ch-release').onclick=()=>{
   toast(sheetChar.name.toUpperCase()+' MOVES ON');
 };
 /* ═══ INVENTORY ═══ */
-let invFilter=null, mergeSel=null;
+let invFilter=null;
 function openInv(slotFilter){
-  invFilter=slotFilter;mergeSel=null;paintInv();openSheet('sh-inv');
+  invFilter=slotFilter;paintInv();openSheet('sh-inv');
 }
 /* true if any character already has this exact item equipped (shared inventory guard) */
 function equippedElsewhere(it){
@@ -466,8 +478,7 @@ function statLine(it){
     (it.procs.length?' · '+it.procs.map(p=>p.toUpperCase()).join('/'):'');
 }
 function paintInv(){
-  $('inv-title').textContent=invFilter?('EQUIP: '+invFilter.toUpperCase()):
-    (mergeSel?'MERGE — PICK A MATCHING ITEM':'INVENTORY');
+  $('inv-title').textContent=invFilter?('EQUIP: '+invFilter.toUpperCase()):'INVENTORY';
   /* keep the character we're equipping for named at the top */
   const whoLine=$('inv-who');
   if(invFilter&&sheetChar){whoLine.textContent='FOR '+sheetChar.name.toUpperCase()+' · '+ARCHETYPES[sheetChar.arch].n.toUpperCase();whoLine.style.display='';}
@@ -489,9 +500,7 @@ function paintInv(){
   }
   let items=S.inv.filter(i=>!equippedElsewhere(i));   // never offer gear worn by another hero
   if(invFilter)items=items.filter(i=>i.slot===invFilter);
-  if(mergeSel)items=items.filter(i=>i!==mergeSel&&sameFamily(i,mergeSel));
-  if(!items.length)host.appendChild(el('div','hint',
-    mergeSel?'NO MATCHING ITEM — NEED SAME BASE, AFFIXES AND +LEVEL':'NOTHING HERE YET — DELVE FOR LOOT'));
+  if(!items.length)host.appendChild(el('div','hint','NOTHING HERE YET — DELVE FOR LOOT'));
   const who=sheetChar||S.player;
   for(const it of items){
     const d=el('div','item');
@@ -502,18 +511,7 @@ function paintInv(){
     d.appendChild(itemIconEl(it,30));                   // real item sprite next to the name
     d.appendChild(el('div','in',inHtml));
     const ops=el('div','iops');
-    if(mergeSel){
-      const risk=Math.round(BAL.mergeDestroyChance(mergeSel.plus+1)*100);
-      const b=el('button',null,'FUSE'+(risk?' ⚠'+risk+'%':''));
-      b.onclick=()=>{
-        const r=tryMerge(sysRng,mergeSel,it);
-        S.inv=S.inv.filter(x=>x!==mergeSel&&x!==it);
-        if(r.ok){S.inv.push(r.item);toast('FORGED: '+itemName(r.item).toUpperCase());}
-        else toast('THE FORGE CONSUMED BOTH ITEMS');
-        mergeSel=null;persist();paintInv();emit('hud');
-      };
-      ops.appendChild(b);
-    } else if(invFilter){
+    if(invFilter){
       const b=el('button',null,'EQUIP');
       b.onclick=()=>{
         const c=sheetChar||S.player;
@@ -525,25 +523,20 @@ function paintInv(){
       };
       ops.appendChild(b);
     } else {
-      const m=el('button',null,'MERGE');
-      const anyMatch=S.inv.some(x=>x!==it&&sameFamily(x,it));
-      m.disabled=!anyMatch;
-      m.onclick=()=>{mergeSel=it;paintInv();};
       const dr=el('button','ghost','DROP');
       dr.onclick=()=>{S.inv=S.inv.filter(x=>x!==it);persist();paintInv();};
-      ops.appendChild(m);ops.appendChild(dr);
+      ops.appendChild(dr);
     }
     d.appendChild(ops);
     host.appendChild(d);
   }
-  $('inv-back').style.display=(invFilter||mergeSel)?'inline-block':'none';
-  $('inv-back').onclick=()=>{invFilter=null;mergeSel=null;paintInv();};
+  $('inv-back').style.display=invFilter?'inline-block':'none';
+  $('inv-back').onclick=()=>{invFilter=null;paintInv();};
 }
-/* ═══ FORGE ═══ */
-let fTarget=null, fMats=[null,null], fBusy=false;
+/* ═══ FORGE — fuse a rare runic gem into gear to raise its +level ═══ */
+let fTarget=null, fBusy=false;
 const forgeChance=t=>t?Math.max(25,95-(t.plus||0)*15):0;         // safer curve, floors at 25%
-const baseCount=bi=>S.inv.reduce((n,i)=>n+(i.base===bi?1:0),0);
-function openForge(){fTarget=null;fMats=[null,null];fBusy=false;$('f-result').className='fresult';paintForge();openSheet('sh-forge');}
+function openForge(){fTarget=null;fBusy=false;$('f-result').className='fresult';paintForge();openSheet('sh-forge');}
 function fillForgeSlot(slotEl,nmEl,it,ph){
   slotEl.className=slotEl.className.replace(/\s*(filled|magic|rare)/g,'');
   slotEl.innerHTML='';
@@ -555,23 +548,30 @@ function fillForgeSlot(slotEl,nmEl,it,ph){
     nmEl.textContent=itemName(it);
   } else {slotEl.appendChild(el('span','fph',ph));nmEl.textContent='';}
 }
+function fillGemSlot(){
+  const slotEl=$('f-gem'),nmEl=$('fnm-gem'),have=S.gems||0;
+  slotEl.className=slotEl.className.replace(/\s*filled/g,'');slotEl.innerHTML='';
+  if(have>0){
+    slotEl.classList.add('filled');
+    slotEl.appendChild(gemIconEl(42));
+    slotEl.appendChild(el('span','plus','×'+have));
+    nmEl.textContent='RUNIC GEM';
+  } else {slotEl.appendChild(el('span','fph','NO<br>GEMS'));nmEl.textContent='';}
+}
 function paintForge(){
-  fillForgeSlot($('f-target'),$('fnm-target'),fTarget,'TAP AN ITEM<br>TO UPGRADE');
-  fillForgeSlot($('f-m0'),$('fnm-m0'),fMats[0],'MATERIAL');
-  fillForgeSlot($('f-m1'),$('fnm-m1'),fMats[1],'MATERIAL');
-  $('f-target').onclick=()=>{if(!fBusy&&fTarget){fTarget=null;fMats=[null,null];paintForge();}};
-  [0,1].forEach(i=>{$('f-m'+i).onclick=()=>{if(!fBusy&&fMats[i]){fMats[i]=null;paintForge();}};});
+  fillForgeSlot($('f-target'),$('fnm-target'),fTarget,'TAP GEAR<br>TO UPGRADE');
+  fillGemSlot();
+  $('f-target').onclick=()=>{if(!fBusy&&fTarget){fTarget=null;paintForge();}};
+  const have=S.gems||0;
   const c=forgeChance(fTarget), col=c>=80?'#5FBE6A':c>=55?'#E8A03C':'#C4552B';
   $('f-chance').textContent=fTarget?c+'%':'—';$('f-chance').style.color=fTarget?col:'';
   const bar=$('f-bar');bar.style.width=(fTarget?c:0)+'%';bar.style.background=col;
-  $('f-prev').innerHTML=fTarget?('<b>'+itemName(fTarget).replace(/\s*\(\+\d+\)$/,'')+'</b> (+'+(fTarget.plus||0)+') <span class="up">→ (+'+((fTarget.plus||0)+1)+')</span>'):'SEAT A TARGET TO SEE THE UPGRADE';
-  $('f-forge').disabled=fBusy||!(fTarget&&fMats[0]&&fMats[1]);
+  $('f-prev').innerHTML=fTarget?('<b>'+itemName(fTarget).replace(/\s*\(\+\d+\)$/,'')+'</b> (+'+(fTarget.plus||0)+') <span class="up">→ (+'+((fTarget.plus||0)+1)+')</span> · COSTS 1 ✦'):'SEAT GEAR TO SEE THE UPGRADE';
+  $('f-forge').disabled=fBusy||!fTarget||have<1;
   const host=$('f-inv');host.innerHTML='';
-  const used=it=>it===fTarget||fMats.includes(it);
-  let list;
-  if(fTarget){list=S.inv.filter(i=>i.base===fTarget.base&&!used(i));$('f-filter').textContent='SHOWING · '+GEAR_BASES[fTarget.base].n.toUpperCase()+' MATERIALS';}
-  else{list=S.inv.filter(i=>baseCount(i.base)>=3);$('f-filter').textContent='TAP AN UPGRADEABLE ITEM';}
-  if(!list.length)host.appendChild(el('div','hint',fTarget?'NO MORE MATCHING MATERIALS IN YOUR PACK':'NEED 3+ OF THE SAME ITEM TO FORGE — DELVE FOR MORE'));
+  const list=S.inv.filter(i=>i!==fTarget);
+  $('f-filter').textContent=fTarget?('YOU HOLD '+have+' RUNIC GEM'+(have===1?'':'S')):'TAP A PIECE OF GEAR TO UPGRADE';
+  if(!list.length)host.appendChild(el('div','hint',fTarget?'NO OTHER GEAR IN YOUR PACK':'NOTHING TO UPGRADE — DELVE FOR GEAR'));
   for(const it of list){
     const d=el('div','item');
     d.appendChild(itemIconEl(it,30));
@@ -580,41 +580,36 @@ function paintForge(){
     host.appendChild(d);
   }
 }
-function forgePick(it){
-  if(fBusy)return;
-  if(!fTarget)fTarget=it;
-  else if(it.base===fTarget.base&&it!==fTarget&&!fMats.includes(it)){const i=fMats.indexOf(null);if(i>=0)fMats[i]=it;}
-  paintForge();
-}
+function forgePick(it){ if(fBusy)return; fTarget=it; paintForge(); }
 function doForge(){
-  if(fBusy||!(fTarget&&fMats[0]&&fMats[1]))return;
+  if(fBusy||!fTarget||(S.gems||0)<1)return;
   fBusy=true;$('f-forge').disabled=true;$('f-result').className='fresult';
   const bench=$('fbench');bench.classList.add('forging');
   const em=$('f-embers');em.innerHTML='';
   for(let i=0;i<20;i++){const s=el('span','ember');s.style.left=(38+sysRng()*24)+'%';
-    s.style.setProperty('--dx',(sysRng()*40-20)+'px');s.style.background=sysRng()<.5?'#E8A03C':'#FFE6A0';
+    s.style.setProperty('--dx',(sysRng()*40-20)+'px');s.style.background=sysRng()<.5?'#5FE0F0':'#CFF6FC';
     s.style.animation='emberfly '+(700+sysRng()*450)+'ms ease-out '+(sysRng()*160)+'ms forwards';em.appendChild(s);}
   $('f-flash').style.animation='flashpop 620ms ease-out 240ms';
   setTimeout(()=>{
     bench.classList.remove('forging');$('f-flash').style.animation='';
     const win=sysRng()*100<forgeChance(fTarget);
-    S.inv=S.inv.filter(x=>x!==fMats[0]&&x!==fMats[1]);   // materials are always consumed
+    S.gems=Math.max(0,(S.gems||0)-1);                    // the gem is always spent
     const res=$('f-result');
     if(win){
       fTarget.plus=(fTarget.plus||0)+1;
       res.className='fresult show win';
-      $('f-verdict').textContent='Forged!';
+      $('f-verdict').textContent='Attuned!';
       $('f-ritem').innerHTML='<b>'+itemName(fTarget)+'</b>';
-      $('f-rsub').textContent='THE ANVIL SINGS · MATERIALS CONSUMED';
-      toast('FORGED: '+itemName(fTarget).toUpperCase());
+      $('f-rsub').textContent='THE RUNE BINDS · GEM CONSUMED';
+      toast('UPGRADED: '+itemName(fTarget).toUpperCase());
     } else {
       res.className='fresult show lose';
-      $('f-verdict').textContent='The temper cracked';
+      $('f-verdict').textContent='The rune shattered';
       $('f-ritem').innerHTML='<b>'+itemName(fTarget)+'</b> — UNCHANGED';
-      $('f-rsub').textContent='BOTH MATERIALS LOST TO THE FLAME';
-      toast('THE FORGE CLAIMED YOUR MATERIALS');
+      $('f-rsub').textContent='THE GEM CRACKED TO DUST';
+      toast('THE GEM SHATTERED');
     }
-    fMats=[null,null];fBusy=false;persist();paintForge();
+    fBusy=false;persist();paintForge();emit('hud');
     clearTimeout(res._h);res._h=setTimeout(()=>{res.className='fresult';},3000);
   },1120);
 }

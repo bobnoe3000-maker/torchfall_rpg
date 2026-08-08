@@ -209,6 +209,10 @@ function kill(att,tgt){
     for(let n=0;n<drops;n++)
       D.loot.push({x:tgt.x+R(D.rng,-.4,.4),y:tgt.y+R(D.rng,-.4,.4),kind:'item',
         item:genItem(D.rng,lv,lm),ph:D.rng()*6.3});
+    /* runic gems — rare; a boss always yields one. fused at the forge to upgrade gear */
+    const gems=(boss?1:0)+(D.rng()<BAL.gemDropChance*lm?1:0);
+    for(let n=0;n<gems;n++)
+      D.loot.push({x:tgt.x+R(D.rng,-.4,.4),y:tgt.y+R(D.rng,-.4,.4),kind:'gem',ph:D.rng()*6.3});
     for(const b of D.units)if(b.side==='party'&&b.alive)grantXp(b.char,(boss?40:7)+lv*3);
     if(boss)emit('toast',{msg:tgt.char.name.toUpperCase()+' IS SLAIN — THE FLOOR IS YOURS'});
     emit('hud');
@@ -414,6 +418,7 @@ export function step(dt){
     for(const b of party){
       if(Math.hypot(p.x-b.x,p.y-b.y)<.65){
         if(p.kind==='silver'){S.silver+=p.amt;float(b,'+'+p.amt+' SILVER','#E8C46A');}
+        else if(p.kind==='gem'){S.gems=(S.gems||0)+1;float(b,'✦ RUNIC GEM','#5FE0F0');}
         else{S.inv.push(p.item);float(b,itemName(p.item),lootColor(p.item));}
         p.dead=true;emit('hud');break;
       }

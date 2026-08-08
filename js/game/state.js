@@ -7,7 +7,7 @@ import {derive} from './stats.js';
 import {starterItem} from './loot.js';
 
 export const S={
-  screen:'boot', player:null, team:[], inv:[], silver:BAL.startingSilver,
+  screen:'boot', player:null, team:[], inv:[], silver:BAL.startingSilver, gems:0,
   depth:1, bestDepth:0, tavern:[], seedCounter:1, sagaName:'',
   mode:'auto',   // auto | manual movement
 };
@@ -21,7 +21,7 @@ const SAGA_B=['Vigil','Cinder','Hollow','Requiem','Warden','Lantern','Descent','
 export function rollSagaName(){ return pick(sysRng,SAGA_A)+' '+pick(sysRng,SAGA_B); }
 /* wipe in-memory state back to defaults for a brand-new saga */
 export function resetState(){
-  S.player=null; S.team=[]; S.inv=[]; S.silver=BAL.startingSilver;
+  S.player=null; S.team=[]; S.inv=[]; S.silver=BAL.startingSilver; S.gems=0;
   S.depth=1; S.bestDepth=0; S.tavern=[]; S.sagaName='';
 }
 
@@ -67,12 +67,12 @@ export function grantXp(u,amt){
 export function persist(){
   const strip=u=>({...u,stats:undefined,buffs:[],hp:Math.round(u.hp)});
   saveGame({v:1,player:strip(S.player),team:S.team.map(strip),inv:S.inv,
-    silver:S.silver,bestDepth:S.bestDepth,tavern:S.tavern.map(strip),sagaName:S.sagaName});
+    silver:S.silver,gems:S.gems,bestDepth:S.bestDepth,tavern:S.tavern.map(strip),sagaName:S.sagaName});
 }
 export function restore(){
   const d=loadGame(); if(!d||!d.player)return false;
   S.player=d.player;S.team=d.team||[];S.inv=d.inv||[];
-  S.silver=d.silver??BAL.startingSilver;S.bestDepth=d.bestDepth||0;S.tavern=d.tavern||[];
+  S.silver=d.silver??BAL.startingSilver;S.gems=d.gems||0;S.bestDepth=d.bestDepth||0;S.tavern=d.tavern||[];
   S.sagaName=d.sagaName||'';
   [S.player,...S.team,...S.tavern].forEach(u=>{u.buffs=[];refresh(u);if(!u.hp)u.hp=u.maxhp;});
   return true;

@@ -426,3 +426,9 @@ canvas{image-rendering:pixelated}
  box-shadow:0 0 24px rgba(232,160,60,.36),0 4px 0 #5e2f11}
 .descend small{display:block;font-family:var(--px);font-size:6px;letter-spacing:.1em;color:#5e2f11;margin-top:5px;font-weight:400}
 .newgame{width:calc(100% - 28px);margin:12px 14px 0;font-size:8px;letter-spacing:.08em}
+
+/* runic gems — cyan currency shown in the purse + forged at the anvil */
+.coin.gem{color:var(--rune);font-size:9px}
+.fslot.gem.filled{border-color:#2E7E96;
+ box-shadow:0 0 0 1px rgba(95,224,240,.30) inset,0 0 16px rgba(95,224,240,.22)}
+.fslot.gem .plus{color:var(--rune)!important}

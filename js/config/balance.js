@@ -11,7 +11,8 @@ export const BAL={
   deathSilverKeep: 30,               // flat silver floor kept on death
   reviveSilverLoss: .5,              // lose half above the floor
   dropSilver: d=>6+d*4,
-  dropItemChance: .30,
+  dropItemChance: .06,               // gear is scarce now — 80% fewer drops than the old .30
+  gemDropChance: .05,                // runic gems drop rarely; fused at the forge to upgrade gear
   depthHp: d=>1+(d-1)*.22,           // enemy scaling
   depthAtk: d=>1+(d-1)*.18,
   enemyLevel: d=>Math.max(1,Math.round(d*1.6-0.5)),

@@ -118,6 +118,16 @@ export function render(t){
       const [sx,sy]=scr(p.x,p.y),bob=Math.sin(t/280+p.ph)*1.5;
       g.fillStyle='rgba(0,0,0,.3)';g.fillRect(sx-3,sy,6,2);
       if(p.kind==='silver'){g.fillStyle='#C9CDD6';g.fillRect(sx-2,sy-4+bob,4,3);g.fillStyle='#EFF2F8';g.fillRect(sx-1,sy-4+bob,2,1);}
+      else if(p.kind==='gem'){                              // runic gem — a glowing cyan crystal
+        const gy=sy-6+bob;
+        g.globalCompositeOperation='lighter';
+        const gr=g.createRadialGradient(sx,gy+2,0,sx,gy+2,12);
+        gr.addColorStop(0,'rgba(95,224,240,.40)');gr.addColorStop(1,'rgba(95,224,240,0)');
+        g.fillStyle=gr;g.fillRect(sx-14,gy-10,28,28);
+        g.globalCompositeOperation='source-over';
+        g.fillStyle='#2E7E96';g.fillRect(sx-2,gy,4,5);g.fillRect(sx-1,gy+5,2,1);
+        g.fillStyle='#5FE0F0';g.fillRect(sx-1,gy+1,3,3);g.fillRect(sx-2,gy-2,4,2);
+        g.fillStyle='#CFF6FC';g.fillRect(sx-1,gy-2,2,2);}
       else{g.fillStyle='#C9A24A';g.fillRect(sx-3,sy-6+bob,6,5);g.fillStyle='#FFE6A0';g.fillRect(sx-2,sy-5+bob,2,1);
         g.globalCompositeOperation='lighter';
         const gr=g.createRadialGradient(sx,sy-3,0,sx,sy-3,10);
