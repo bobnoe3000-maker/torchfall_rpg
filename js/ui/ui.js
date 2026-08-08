@@ -1,5 +1,6 @@
-/* Screens: create → town → delve; overlay sheets; HUD */
-import {S,makeCharacter,randRecipe,refresh,partyUnits,persist,restore,grantXp} from '../game/state.js';
+/* Screens: splash → login → slots → create/home → delve; overlay sheets; HUD */
+import {S,makeCharacter,randRecipe,refresh,partyUnits,persist,restore,grantXp,
+        resetState,rollSagaName,slotSummary} from '../game/state.js';
 import {D,startDelve} from '../game/combat.js';
 import {ARCHETYPES,ARCH_KEYS,STAT_WEIGHTS,skillColor} from '../config/skills.js';
 import {BAL} from '../config/balance.js';
@@ -11,7 +12,8 @@ import {scaledStats} from '../game/stats.js';
 import {sysRng,RI,pick} from '../core/rng.js';
 import {on,emit} from '../core/bus.js';
 import {canvasPoint,bindCanvas,fitCanvas,getZoom,setZoom,minimapHitClient,renderFullMap} from '../render/iso.js';
-import {wipeSave} from '../core/save.js';
+import {wipeSave,setSlot,wipeSlot,SLOT_COUNT,saveSession,loadSession,clearSession} from '../core/save.js';
+import {ambientAttach,ambientDetach} from '../render/ambient.js';
 
 const $=id=>document.getElementById(id);
 const el=(tag,cls,html)=>{const d=document.createElement(tag);if(cls)d.className=cls;if(html!=null)d.innerHTML=html;return d;};
@@ -64,10 +66,15 @@ function portrait(c,cnv,scale){
   cnv.style.width=(fr.width*(scale||2))+'px';
   cnv.style.height=(fr.height*(scale||2))+'px';
 }
+/* which screens carry the living NPC backdrop, and the canvas that hosts it */
+const AMB={'scr-splash':'amb-splash','scr-login':'amb-login','scr-slots':'amb-slots',
+           'scr-create':'amb-create','scr-town':'amb-town'};
 export function show(id){
   for(const s of document.querySelectorAll('.screen'))s.classList.remove('on');
   $(id).classList.add('on');
   S.screen=id;
+  const ac=AMB[id]&&$(AMB[id]);
+  if(ac)ambientAttach(ac); else ambientDetach();
 }
 function closeSheets(){for(const s of document.querySelectorAll('.osheet'))s.classList.remove('on');$('veil').classList.remove('on');}
 function openSheet(id){$('veil').classList.add('on');$(id).classList.add('on');}
@@ -89,6 +96,7 @@ export function initCreate(){
   $('cc-colors').onclick=()=>{draft.char.pal=rollPal(sysRng);paintCreate();};
   $('cc-start').onclick=()=>{
     S.player=draft.char;S.player.isPlayer=true;
+    S.sagaName=rollSagaName();
     S.tavern=[];fillTavern();
     persist();buildTown();show('scr-town');
     toast('WELCOME TO TORCHFALL, '+S.player.name.toUpperCase());
@@ -108,32 +116,90 @@ function paintCreate(){
   $('cc-desc').innerHTML=ARCHETYPES[c.arch].skills.map(s=>
     `<div class="skrow"><span>${s.g} <b>${s.n}</b></span><i>${s.d}</i></div>`).join('');
 }
-/* ═══ TOWN ═══ */
+/* ═══ FRONT-END: splash · login · save slots ═══ */
+const ROMAN=['I','II','III','IV','V'];
+export function initMenus(){
+  /* splash — a tap anywhere carries on (returning players skip login) */
+  $('scr-splash').onclick=()=>{ if(loadSession())gotoSlots(); else show('scr-login'); };
+  $('login-email-btn').onclick=()=>{
+    const em=($('login-email').value||'').trim();
+    saveSession({mode:'email',email:em||'seeker@thedeep.io'});
+    toast(em?('BOUND TO '+em.toUpperCase()):'WELCOME, SEEKER');
+    gotoSlots();
+  };
+  $('login-guest').onclick=()=>{ saveSession({mode:'guest'}); gotoSlots(); };
+  $('slots-logout').onclick=()=>{ clearSession(); show('scr-login'); };
+}
+function gotoSlots(){ paintSlots(); show('scr-slots'); }
+function paintSlots(){
+  const host=$('slot-list'); host.innerHTML='';
+  for(let i=0;i<SLOT_COUNT;i++){
+    const sum=slotSummary(i);
+    const card=el('div','slot '+(sum?'filled':'empty'));
+    card.appendChild(el('div','sno','SLOT '+(ROMAN[i]||i+1)));
+    if(sum){
+      const party=el('div','sparty');
+      for(const m of sum.members){const cnv=el('canvas');party.appendChild(cnv);portrait(m,cnv,1);}
+      card.appendChild(party);
+      const need=BAL.xpCurve(sum.xpLv);
+      const info=el('div','sinfo');
+      info.innerHTML='<div class="sname">'+sum.sagaName+'</div>'
+        +'<div class="smeta"><span>LV <b>'+sum.lv+'</b></span>'
+        +'<span>DEPTH <b>'+(sum.depth?('B'+sum.depth):'—')+'</b></span>'
+        +'<span>'+sum.party+' IN PARTY</span></div>'
+        +'<div class="sbar"><i style="width:'+Math.min(100,sum.xp/need*100)+'%"></i></div>';
+      card.appendChild(info);
+      card.appendChild(el('div','schev','▸'));
+      const w=el('button','swipe','✕ ERASE');
+      w.onclick=e=>{e.stopPropagation();
+        if(confirm('Erase "'+sum.sagaName+'"? This saga is lost forever.')){wipeSlot(i);paintSlots();}};
+      card.appendChild(w);
+    } else {
+      card.appendChild(el('div','plus','<span>✦</span>BEGIN A NEW SAGA'));
+    }
+    card.onclick=()=>pickSlot(i);
+    host.appendChild(card);
+  }
+}
+function pickSlot(i){
+  setSlot(i);
+  resetState();
+  if(slotSummary(i)){                 // existing saga → load and drop into town
+    restore(); buildTown(); show('scr-town');
+    toast('THE EMBER REKINDLES — '+(S.sagaName||'').toUpperCase());
+  } else {                            // empty slot → forge a new hero for this saga
+    S.tavern=[]; initCreate(); show('scr-create');
+  }
+}
+/* ═══ TOWN / HOME (Emberrest) ═══ */
 export function buildTown(){
-  const c=S.player;
-  portrait(c,$('tw-face'),2);
-  $('tw-name').textContent=c.name+' · '+ARCHETYPES[c.arch].n+' · LV '+c.lv;
-  $('tw-silver').textContent=S.silver+' SILVER';
-  $('tw-best').textContent='DEEPEST: '+(S.bestDepth||'—');
+  $('tw-silver').textContent='◈ '+S.silver;
+  $('tw-best').textContent=S.bestDepth?('DEEPEST B'+S.bestDepth):'DEEPEST —';
+  const room=BAL.teamCap-S.team.length;
+  $('tw-tav-tag').textContent=room>0?(room+' OPEN'):'';
+  $('tw-delve-sub').textContent=(S.bestDepth?('DEEPEST FLOOR '+S.bestDepth):'THE STAIR AWAITS')+' · A BOSS EVERY 3RD';
   const strip=$('tw-team');strip.innerHTML='';
-  for(const m of S.team){
+  for(const m of [S.player,...S.team]){
+    if(!m)continue;
     const d=el('div','tmate');
     const cnv=el('canvas');d.appendChild(cnv);
-    d.appendChild(el('div','tn',m.name+'<i>'+ARCHETYPES[m.arch].n+' LV '+m.lv+'</i>'));
-    portrait(m,cnv,1.5);
+    d.appendChild(el('div','cn','<b>'+m.name+'</b>'+ARCHETYPES[m.arch].n+' · L'+m.lv));
+    portrait(m,cnv,1);cnv.style.width='100%';cnv.style.height='auto';
     d.onclick=()=>openCharSheet(m);
     strip.appendChild(d);
   }
-  if(!S.team.length)strip.appendChild(el('div','hint','NO COMPANIONS — VISIT THE TAVERN'));
 }
 $('tw-tavern').onclick=()=>openTavern();
 $('tw-char').onclick=()=>openCharSheet(S.player);
 $('tw-inv').onclick=()=>openInv(null);
 $('tw-forge').onclick=()=>openForge();
+$('tw-shop').onclick=()=>toast('THE SHOP OPENS SOON — MERCHANTS STILL FEAR THE DARK');
+$('tw-bank').onclick=()=>toast('THE BANK OPENS SOON — NO VAULT YET HOLDS YOUR HAUL');
 $('tw-delve').onclick=()=>{beginDelve(1);};
 $('tw-wipe').onclick=()=>{
-  if(!confirm('Erase this save entirely?'))return;
-  wipeSave();location.reload();
+  if(!confirm('Abandon this saga entirely? The slot will be emptied.'))return;
+  wipeSave();resetState();paintSlots();show('scr-slots');
+  toast('THE SAGA IS ASH — CHOOSE ANOTHER EMBER');
 };
 function beginDelve(depth){
   [S.player,...S.team].forEach(c=>{refresh(c);c.hp=c.maxhp;});

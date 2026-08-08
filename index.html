@@ -13,9 +13,54 @@
 <body>
 <div id="phone">
 
+  <!-- SPLASH -->
+  <div class="screen menu" id="scr-splash">
+    <canvas class="ambient" id="amb-splash"></canvas>
+    <div class="mvig"></div>
+    <div class="splashwrap">
+      <div class="torchmark">🔥</div>
+      <div class="gtitle">TORCH<span class="fall">FALL</span></div>
+      <div class="grule"></div>
+      <div class="gtag">EVERY TORCH BURNS OUT · THEN THE DARK</div>
+    </div>
+    <div class="begin" id="splash-begin">▸ TAP TO BEGIN ◂</div>
+    <div class="gver">v0.1 · A DELVE INTO THE DEEP</div>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="screen menu" id="scr-login">
+    <canvas class="ambient" id="amb-login"></canvas>
+    <div class="mvig"></div>
+    <div class="menuwrap">
+      <div class="mtitle">Enter, Torchbearer</div>
+      <div class="msub">BIND YOUR SAGA TO THE EMBER</div>
+      <div class="mpanel">
+        <div class="flbl2">EMAIL</div>
+        <input id="login-email" class="mfield" type="email" placeholder="seeker@thedeep.io" autocomplete="email" inputmode="email">
+        <button id="login-email-btn" class="mbtn primary">CONTINUE WITH EMAIL ▸</button>
+        <div class="mor">OR</div>
+        <button id="login-guest" class="mbtn ghost2">🎲 PLAY AS GUEST</button>
+      </div>
+      <div class="mfine">Guests keep progress on this device only.<br>Bind an email to carry your saga anywhere.</div>
+    </div>
+  </div>
+
+  <!-- SAVE SLOTS -->
+  <div class="screen menu" id="scr-slots">
+    <canvas class="ambient" id="amb-slots"></canvas>
+    <div class="mvig"></div>
+    <div class="menuwrap">
+      <div class="mtitle">Choose Your Saga</div>
+      <div class="msub">THREE EMBERS · THREE FATES</div>
+      <div id="slot-list" class="slotlist"></div>
+      <button id="slots-logout" class="mbtn ghost2" style="margin-top:14px">← LOG OUT</button>
+    </div>
+  </div>
+
   <!-- CHARACTER CREATION -->
   <div class="screen" id="scr-create">
-    <div class="pad">
+    <canvas class="ambient" id="amb-create"></canvas>
+    <div class="pad" style="position:relative;z-index:2">
       <h1>Torchfall</h1>
       <div class="sub">FORGE THE ONE WHO CARRIES THE LIGHT</div>
       <div id="cc-arch"></div>
@@ -33,29 +78,40 @@
     </div>
   </div>
 
-  <!-- TOWN -->
+  <!-- TOWN / HOME -->
   <div class="screen" id="scr-town">
-    <div class="pad">
-      <h1>Emberrest</h1>
-      <div class="sub">THE LAST TOWN ABOVE THE DARK</div>
-      <div class="twhead">
-        <canvas id="tw-face"></canvas>
-        <div style="flex:1">
-          <div id="tw-name"></div>
-          <div id="tw-silver"></div>
-          <div id="tw-best"></div>
+    <canvas class="ambient" id="amb-town"></canvas>
+    <div class="homewrap">
+      <div class="topbar">
+        <div class="crest"><span class="ic">🕯</span>
+          <div class="townname">Emberrest<small>THE LAST LIT HOLLOW</small></div></div>
+        <div class="purse">
+          <div class="coin" id="tw-silver">◈ 0</div>
+          <div class="coin depth" id="tw-best">DEEPEST —</div>
         </div>
       </div>
-      <div class="twbtns">
-        <button id="tw-tavern">🍺 TAVERN</button>
-        <button id="tw-char">☰ CHARACTER</button>
-        <button id="tw-inv">🎒 INVENTORY</button>
-        <button id="tw-forge">⚒ FORGE</button>
-        <button id="tw-wipe" class="ghost">☠ NEW GAME</button>
-        <button id="tw-delve" class="primary wide">⬇ DESCEND INTO THE DELVE</button>
+      <div class="hero">
+        <div class="hgrad"></div>
+        <div class="htext">
+          <div class="q" id="tw-saga">"The stair still breathes below. Rest by the fire, trade what you tore from the dark — then go down again."</div>
+          <div class="who">— MAERITH, THE HOLLOW WARDEN</div>
+        </div>
       </div>
-      <h2>Company</h2>
-      <div id="tw-team"></div>
+      <div class="section">SERVICES OF THE HOLLOW</div>
+      <div class="svcgrid">
+        <div class="svc" id="tw-shop"><span class="glow" style="--c:#E8A03C"></span><span class="si">⚖️</span><span class="sn">SHOP</span><span class="sd">Buy blades &amp; brews</span><span class="soon">SOON</span></div>
+        <div class="svc" id="tw-tavern"><span class="glow" style="--c:#C4552B"></span><span class="si">🍺</span><span class="sn">TAVERN</span><span class="sd">Recruit &amp; rest</span><span class="tag2" id="tw-tav-tag"></span></div>
+        <div class="svc" id="tw-bank"><span class="glow" style="--c:#5FE0F0"></span><span class="si">🏦</span><span class="sn">BANK</span><span class="sd">Store gold &amp; loot</span><span class="soon">SOON</span></div>
+        <div class="svc" id="tw-forge"><span class="glow" style="--c:#B08CFF"></span><span class="si">⚒️</span><span class="sn">FORGE</span><span class="sd">Merge &amp; upgrade</span></div>
+      </div>
+      <div class="section">YOUR COMPANY</div>
+      <div class="svcrow">
+        <button id="tw-char" class="minibtn">☰ CHARACTER</button>
+        <button id="tw-inv" class="minibtn">🎒 INVENTORY</button>
+      </div>
+      <div id="tw-team" class="company"></div>
+      <button id="tw-delve" class="descend">⬇ DESCEND INTO THE DELVE<small id="tw-delve-sub"></small></button>
+      <button id="tw-wipe" class="ghost newgame">☠ ABANDON SAGA · NEW GAME</button>
     </div>
   </div>
 

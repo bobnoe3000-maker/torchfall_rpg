@@ -1,14 +1,15 @@
 import {S,restore} from './game/state.js';
 import {D,step} from './game/combat.js';
 import {bindCanvas,render} from './render/iso.js';
-import {initCreate,buildTown,show,initCanvasInput,syncHud} from './ui/ui.js';
+import {initCreate,initMenus,buildTown,show,initCanvasInput,syncHud} from './ui/ui.js';
 
 const cv=document.getElementById('cv');
 bindCanvas(cv);
 initCanvasInput(cv);
 initCreate();
-if(restore()&&S.player){buildTown();show('scr-town');}
-else show('scr-create');
+initMenus();
+/* every launch opens on the splash — login/session and slot pick happen from there */
+show('scr-splash');
 
 let last=performance.now(),hudT=0;
 function loop(now){

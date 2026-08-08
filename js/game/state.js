@@ -2,17 +2,28 @@ import {BAL} from '../config/balance.js';
 import {ARCHETYPES} from '../config/skills.js';
 import {rollPal,HEADS,TORSOS,ARMS,LEGS} from '../art/parts.js';
 import {sysRng,RI,pick} from '../core/rng.js';
-import {saveGame,loadGame} from '../core/save.js';
+import {saveGame,loadGame,loadSlot} from '../core/save.js';
 import {derive} from './stats.js';
 import {starterItem} from './loot.js';
 
 export const S={
   screen:'boot', player:null, team:[], inv:[], silver:BAL.startingSilver,
-  depth:1, bestDepth:0, tavern:[], seedCounter:1,
+  depth:1, bestDepth:0, tavern:[], seedCounter:1, sagaName:'',
   mode:'auto',   // auto | manual movement
 };
 const NAMES=['Bran','Elara','Nix','Torvald','Morwen','Vex','Hedda','Caldus','Wren','Sigrun',
  'Ithra','Ferrin','Osric','Nyra','Garruk','Selwyn','Lark','Aldous','Dagny','Thax'];
+/* moody two-word saga names shown on the save-slot picker */
+const SAGA_A=['Ashen','Grave','Ember','Hollow','Pale','Sunken','Cinder','Dusk','Wither','Rust',
+ 'Umbral','Gloom','Charred','Mourn','Black','Fell','Wan','Dire','Storm','Bleak'];
+const SAGA_B=['Vigil','Cinder','Hollow','Requiem','Warden','Lantern','Descent','Reliquary','Pilgrim',
+ 'Covenant','Threnody','Barrow','Wake','Sojourn','Verse','Tithe','Reverie','Ledger','Vow','Reach'];
+export function rollSagaName(){ return pick(sysRng,SAGA_A)+' '+pick(sysRng,SAGA_B); }
+/* wipe in-memory state back to defaults for a brand-new saga */
+export function resetState(){
+  S.player=null; S.team=[]; S.inv=[]; S.silver=BAL.startingSilver;
+  S.depth=1; S.bestDepth=0; S.tavern=[]; S.sagaName='';
+}
 
 export function randRecipe(rng,arch){
   const a=ARCHETYPES[arch];
@@ -56,13 +67,27 @@ export function grantXp(u,amt){
 export function persist(){
   const strip=u=>({...u,stats:undefined,buffs:[],hp:Math.round(u.hp)});
   saveGame({v:1,player:strip(S.player),team:S.team.map(strip),inv:S.inv,
-    silver:S.silver,bestDepth:S.bestDepth,tavern:S.tavern.map(strip)});
+    silver:S.silver,bestDepth:S.bestDepth,tavern:S.tavern.map(strip),sagaName:S.sagaName});
 }
 export function restore(){
   const d=loadGame(); if(!d||!d.player)return false;
   S.player=d.player;S.team=d.team||[];S.inv=d.inv||[];
   S.silver=d.silver??BAL.startingSilver;S.bestDepth=d.bestDepth||0;S.tavern=d.tavern||[];
+  S.sagaName=d.sagaName||'';
   [S.player,...S.team,...S.tavern].forEach(u=>{u.buffs=[];refresh(u);if(!u.hp)u.hp=u.maxhp;});
   return true;
+}
+/* read a slot's raw save into a compact summary for the save-slot picker (no side effects) */
+export function slotSummary(i){
+  const d=loadSlot(i); if(!d||!d.player)return null;
+  const party=[d.player,...(d.team||[])].filter(Boolean);
+  return {
+    sagaName:d.sagaName||(d.player.name+"'s Saga"),
+    lv:d.player.lv||1,
+    depth:d.bestDepth||0,
+    party:party.length,
+    members:party.slice(0,3),
+    xp:d.player.xp||0, xpLv:d.player.lv||1,
+  };
 }
 export function partyUnits(){ return [S.player,...S.team].filter(u=>u&&u.alive); }
